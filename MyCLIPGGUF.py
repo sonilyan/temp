@@ -15,6 +15,7 @@ import importlib
 import logging
 import gc
 import time
+import threading
 
 import torch
 import torch.nn.functional as F
@@ -28,6 +29,12 @@ import comfy.model_management
 _LOG = logging.getLogger("MyCLIPGGUF")
 _VENDOR_PACKAGE_NAME = "_myclipgguf_vendor"
 _VENDOR = None
+
+# Keep one fully constructed CLIP alive across repeated workflow loops.
+# The model's streamable matrix parameters retain their CPU/mmap-backed
+# storage through this reference, so later loops do not reopen either GGUF.
+_CLIP_CACHE = None
+_CLIP_CACHE_LOCK = threading.RLock()
 
 
 def _memory_info(label):
@@ -50,6 +57,31 @@ def _memory_info(label):
 
 def _stage_done(stage, started):
     _LOG.info("MyCLIPGGUF: %s 完成，耗时 %.2f 秒", stage, time.perf_counter() - started)
+
+
+def _clip_cache_key(clip_path, chunk_rows):
+    """Fingerprint the text GGUF and the mmproj selected by ComfyUI-GGUF."""
+    text_path = os.path.normcase(os.path.realpath(clip_path))
+
+    def _file_signature(path):
+        stat = os.stat(path)
+        return (os.path.normcase(os.path.realpath(path)), stat.st_size, stat.st_mtime_ns)
+
+    text_signature = _file_signature(text_path)
+    vendor = _load_vendor_modules()
+    strip_suffix = vendor["loader"].strip_quant_suffix
+    text_name = os.path.splitext(os.path.basename(text_path))[0].lower()
+    text_name = strip_suffix(text_name)
+    root = os.path.dirname(text_path)
+    mmproj_candidates = []
+    for filename in os.listdir(root):
+        name, ext = os.path.splitext(filename)
+        if ext.lower() == ".gguf" and "mmproj" in name.lower() and text_name in name.lower():
+            mmproj_candidates.append(os.path.join(root, filename))
+    # The upstream loader uses the first os.listdir() match. Include all
+    # matching candidates in the key so additions/removals also invalidate it.
+    mmproj_signature = tuple(_file_signature(path) for path in mmproj_candidates)
+    return (text_signature, mmproj_signature, int(chunk_rows))
 
 
 def _cleanup_after_text_encode():
@@ -544,7 +576,7 @@ def _make_operations_class(chunk_rows):
 
         def _save_to_state_dict(self, destination, prefix, keep_vars):
             if isinstance(self.weight, MyGGMLTensor) and getattr(self.weight, "my_stream_cpu", False):
-                return self.ggml_save_to_state_dict(destination, prefix, keep_vars)
+                return self.ggml_save_to_state_dict(self, destination, prefix, keep_vars)
             return super()._save_to_state_dict(destination, prefix, keep_vars)
 
         def forward_comfy_cast_weights(self, input_tensor):
@@ -622,7 +654,268 @@ def _make_operations_class(chunk_rows):
 
         def _save_to_state_dict(self, destination, prefix, keep_vars):
             if isinstance(self.weight, MyGGMLTensor) and getattr(self.weight, "my_stream_cpu", False):
-                return self.ggml_save_to_state_dict(destination, prefix, keep_vars)
+                return self.ggml_save_to_state_dict(self, destination, prefix, keep_vars)
+            return super()._save_to_state_dict(destination, prefix, keep_vars)
+
+        def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict,
+                                  missing_keys, unexpected_keys, error_msgs):
+            # Always use the GGUF-aware parameter assignment, including F16/F32
+            # embedding tables that are larger than the plugin's 64K threshold.
+            return self.ggml_load_from_state_dict(
+                state_dict, prefix, local_metadata, strict,
+                missing_keys, unexpected_keys, error_msgs,
+            )
+
+        def forward_comfy_cast_weights(self, input_ids, out_dtype=None):
+            weight = self.weight
+            if not isinstance(weight, MyGGMLTensor) or not getattr(weight, "my_stream_cpu", False):
+                if self.is_ggml_quantized():
+                    return vendor_ops.GGMLOps.Embedding.forward_ggml_cast_weights(
+                        self, input_ids, out_dtype=out_dtype
+                    )
+                return comfy.ops.manual_cast.Embedding.forward_comfy_cast_weights(
+                    self, input_ids, out_dtype=out_dtype
+                )
+
+            if getattr(weight, "patches", None):
+                target_dtype = out_dtype or self._my_embedding_dtype or torch.float16
+                full_weight = self.get_weight(weight, target_dtype).to(
+                    device=input_ids.device, dtype=target_dtype
+                )
+                return F.embedding(
+                    input_ids, full_weight, self.padding_idx, self.max_norm,
+                    self.norm_type, self.scale_grad_by_freq, self.sparse,
+                ).to(dtype=out_dtype or target_dtype)
+
+            target_dtype = out_dtype or self._my_embedding_dtype
+            if target_dtype is None:
+                qtype = getattr(weight, "tensor_type", None)
+                qname = getattr(qtype, "name", "")
+                target_dtype = torch.float32 if qname == "F32" else torch.float16
+
+            flat_ids = input_ids.reshape(-1).to(dtype=torch.long)
+            unique_ids, inverse = torch.unique(
+                flat_ids, sorted=True, return_inverse=True
+            )
+            rows = _get_matrix_rows(
+                weight,
+                device=input_ids.device,
+                dtype=target_dtype,
+                row_ids=unique_ids,
+            )
+
+            remapped = inverse.reshape(input_ids.shape).to(device=input_ids.device)
+            if self.max_norm is not None:
+                mapped_padding_idx = None
+                if self.padding_idx is not None:
+                    matches = torch.nonzero(unique_ids == self.padding_idx, as_tuple=False)
+                    if matches.numel() > 0:
+                        mapped_padding_idx = int(matches[0, 0].item())
+                result = F.embedding(
+                    remapped, rows, mapped_padding_idx, self.max_norm,
+                    self.norm_type, self.scale_grad_by_freq, self.sparse,
+                )
+            else:
+                result = rows.index_select(0, remapped.reshape(-1)).reshape(
+                    *input_ids.shape, self.embedding_dim
+                )
+            return result.to(dtype=out_dtype or target_dtype)
+
+        def host_rows(self, input_ids, out_dtype=None):
+            # Used by some ComfyUI host-row paths. Reuse the same selected-row
+            # implementation rather than materializing the vocabulary table.
+            return self.forward_comfy_cast_weights(input_ids, out_dtype=out_dtype)
+
+    class MyGGMLOps(vendor_ops.GGMLOps):
+        Linear = MyLinear
+        Embedding = MyEmbedding
+
+    MyGGMLOps.__name__ = "MyGGMLOps_Chunk%d" % chunk_rows
+    return MyGGMLOps
+
+
+# -----------------------------------------------------------------------------
+# Qwen Image 2.1-specific GGUF state-dict preparation.
+# Do NOT call vendor gguf_clip_loader(): that function eagerly dequantizes the
+# entire token_embd.weight table. We intentionally call gguf_sd_loader() and
+# reproduce only the Qwen3-VL key mapping + matching mmproj loading.
+# -----------------------------------------------------------------------------
+
+def _load_qwen_image21_state_dict(clip_path):
+    vendor = _load_vendor_modules()
+    loader = vendor["loader"]
+
+    stage_start = time.perf_counter()
+    _LOG.info("MyCLIPGGUF: [1/4] 开始读取文本 GGUF 权重：%s", os.path.basename(clip_path))
+    _memory_info("before text GGUF")
+    state_dict, extra = loader.gguf_sd_loader(clip_path, is_text_model=True)
+    _stage_done("文本 GGUF 权重读取", stage_start)
+    _memory_info("after text GGUF")
+    arch = extra.get("arch_str")
+    if arch != "qwen3vl":
+        raise RuntimeError(
+            "MyCLIPGGUF 目前只支持 Qwen Image 2.1 的 qwen3vl GGUF，"
+            "文件架构检测结果为：%r" % arch
+        )
+
+    token_key = "token_embd.weight"
+    if token_key not in state_dict:
+        raise RuntimeError("MyCLIPGGUF: GGUF 中找不到 token_embd.weight。")
+
+    token_shape = tuple(int(x) for x in state_dict[token_key].shape)
+    if len(token_shape) != 2 or token_shape[1] != 4096:
+        raise RuntimeError(
+            "MyCLIPGGUF 目前针对 Qwen3-VL-8B / Qwen Image 2.1，"
+            "预期 token_embd.weight 的 hidden size 为 4096，实际为 %s。" % (token_shape,)
+        )
+
+    # Match the original plugin's llama.cpp -> ComfyUI key conversion, but
+    # deliberately skip its eager token_embd.weight dequantization.
+    stage_start = time.perf_counter()
+    state_dict = loader.sd_map_replace(state_dict, loader.LLAMA_SD_MAP)
+    _stage_done("文本权重 key 映射", stage_start)
+
+    # Wrap the text GGUF tensors BEFORE loading/merging mmproj. The mmproj
+    # loader performs view/reshape/concatenation on some F16/F32 tensors; those
+    # derived tensors can remain GGMLTensor subclasses while losing custom
+    # tensor_type attributes. They are ordinary visual weights and must not be
+    # treated as streamable text matrices anyway.
+    stage_start = time.perf_counter()
+    state_dict = _wrap_gguf_tensors(state_dict)
+    _stage_done("文本 GGUF 流式权重包装", stage_start)
+
+    # Keep the original plugin's mmproj discovery, Qwen3-VL merger mapping,
+    # split-QKV reconstruction and visual state-dict behavior.
+    stage_start = time.perf_counter()
+    _LOG.info("MyCLIPGGUF: [2/4] 开始读取视觉塔 mmproj 权重。")
+    _memory_info("before mmproj")
+    vision_state = loader.gguf_mmproj_loader(clip_path)
+    _stage_done("视觉塔 mmproj 读取", stage_start)
+    _memory_info("after mmproj")
+    if not vision_state:
+        raise RuntimeError(
+            "Qwen3-VL / Qwen Image 2.1 必须有匹配的 mmproj GGUF。"
+            "请把对应 mmproj 文件放在文本编码器 GGUF 同一目录，并确保文件名包含匹配的模型名。"
+        )
+    vision_state = {"model." + key: value for key, value in vision_state.items()}
+    state_dict.update(vision_state)
+
+    # Text matrix weights remain backed by their original CPU/mmap storage.
+    # Visual mmproj weights retain the plugin's original loading behavior.
+
+    _LOG.info(
+        "MyCLIPGGUF: [3/4] 权重准备完成；arch=%s，token_embd=%s；"
+        "词表保持按 token 行读取。",
+        arch, token_shape,
+    )
+    return state_dict, extra
+# -----------------------------------------------------------------------------
+# Custom operations. All ordinary ComfyUI-GGUF operations are inherited;
+# only Linear and Embedding are replaced with streamed implementations.
+# -----------------------------------------------------------------------------
+
+def _make_operations_class(chunk_rows):
+    vendor = _load_vendor_modules()
+    vendor_ops = vendor["ops"]
+    chunk_rows = int(chunk_rows)
+
+    class MyLinear(vendor_ops.GGMLLayer, comfy.ops.manual_cast.Linear):
+        def __init__(self, in_features, out_features, bias=True, device=None, dtype=None):
+            # Avoid allocating a full-precision placeholder matrix before GGUF
+            # state-dict assignment (important for large Qwen layers on Windows).
+            torch.nn.Module.__init__(self)
+            self.in_features = int(in_features)
+            self.out_features = int(out_features)
+            self.weight = None
+            self.bias = None
+            self.weight_comfy_model_dtype = dtype
+            self.bias_comfy_model_dtype = dtype
+            self.comfy_need_lazy_init_bias = bool(bias)
+
+        def ggml_save_to_state_dict(self, destination, prefix, keep_vars):
+            return _save_stream_state_dict(self, destination, prefix, chunk_rows)
+
+        def _save_to_state_dict(self, destination, prefix, keep_vars):
+            if isinstance(self.weight, MyGGMLTensor) and getattr(self.weight, "my_stream_cpu", False):
+                return self.ggml_save_to_state_dict(self, destination, prefix, keep_vars)
+            return super()._save_to_state_dict(destination, prefix, keep_vars)
+
+        def forward_comfy_cast_weights(self, input_tensor):
+            weight = self.weight
+            if not isinstance(weight, MyGGMLTensor) or not getattr(weight, "my_stream_cpu", False):
+                if self.is_ggml_quantized():
+                    return vendor_ops.GGMLOps.Linear.forward_ggml_cast_weights(self, input_tensor)
+                return comfy.ops.manual_cast.Linear.forward_comfy_cast_weights(self, input_tensor)
+
+            if getattr(weight, "patches", None):
+                # LoRA/weight patches retain the original plugin behavior.
+                full_weight, full_bias = _full_weight_fallback(self, input_tensor)
+                return F.linear(input_tensor, full_weight, full_bias)
+
+            if input_tensor.shape[-1] != self.in_features:
+                raise RuntimeError(
+                    "MyCLIPGGUF: Linear 输入维度错误：input=%s in_features=%d"
+                    % (tuple(input_tensor.shape), self.in_features)
+                )
+
+            input_shape = tuple(input_tensor.shape)
+            x = input_tensor.reshape(-1, self.in_features)
+            output = torch.empty(
+                (x.shape[0], self.out_features),
+                device=input_tensor.device,
+                dtype=input_tensor.dtype,
+            )
+
+            bias = None
+            if self.bias is not None:
+                bias = _plain_tensor(self.bias).to(
+                    device=input_tensor.device,
+                    dtype=input_tensor.dtype,
+                    non_blocking=True,
+                )
+
+            with torch.no_grad():
+                for row_start in range(0, self.out_features, chunk_rows):
+                    row_end = min(row_start + chunk_rows, self.out_features)
+                    w = _get_matrix_rows(
+                        weight,
+                        device=input_tensor.device,
+                        dtype=input_tensor.dtype,
+                        start=row_start,
+                        end=row_end,
+                    )
+                    b = bias[row_start:row_end] if bias is not None else None
+                    output[:, row_start:row_end] = F.linear(x, w, b)
+                    del w
+
+            return output.reshape(*input_shape[:-1], self.out_features)
+
+    class MyEmbedding(vendor_ops.GGMLLayer, comfy.ops.manual_cast.Embedding):
+        def __init__(self, num_embeddings, embedding_dim, padding_idx=None, max_norm=None,
+                     norm_type=2.0, scale_grad_by_freq=False, sparse=False, _weight=None,
+                     _freeze=False, device=None, dtype=None):
+            # Do not allocate the 151936 x 4096 embedding table during init.
+            torch.nn.Module.__init__(self)
+            self.num_embeddings = int(num_embeddings)
+            self.embedding_dim = int(embedding_dim)
+            self.padding_idx = padding_idx
+            self.max_norm = max_norm
+            self.norm_type = norm_type
+            self.scale_grad_by_freq = scale_grad_by_freq
+            self.sparse = sparse
+            self.weight = None
+            self.bias = None
+            self.weight_comfy_model_dtype = dtype
+            self._my_embedding_dtype = dtype
+
+        def ggml_save_to_state_dict(self, destination, prefix, keep_vars):
+            # The embedding path materializes only the token rows present in the
+            # current prompt. Reserve for up to 8192 unique rows, not the vocab.
+            return _save_stream_state_dict(self, destination, prefix, 8192)
+
+        def _save_to_state_dict(self, destination, prefix, keep_vars):
+            if isinstance(self.weight, MyGGMLTensor) and getattr(self.weight, "my_stream_cpu", False):
+                return self.ggml_save_to_state_dict(self, destination, prefix, keep_vars)
             return super()._save_to_state_dict(destination, prefix, keep_vars)
 
         def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict,
@@ -818,52 +1111,78 @@ class MyCLIPGGUFLoader:
         return path
 
     def load_clip(self, clip_name, linear_chunk_rows=512):
+        global _CLIP_CACHE
         total_start = time.perf_counter()
         vendor = _load_vendor_modules()
         clip_path = self._resolve_clip_path(clip_name)
-        state_dict, extra = _load_qwen_image21_state_dict(clip_path)
+        cache_key = _clip_cache_key(clip_path, linear_chunk_rows)
 
-        stage_start = time.perf_counter()
-        _LOG.info("MyCLIPGGUF: [4/4] 开始构建 CLIP 文本编码器。")
-        _memory_info("before CLIP build")
-        operations = _make_operations_class(linear_chunk_rows)
-        model_options = {
-            "custom_operations": operations,
-            "initial_device": comfy.model_management.text_encoder_offload_device(),
-        }
+        # Serialize cache lookup/build. Returning the same CLIP object is
+        # intentional: ComfyUI may load/offload its patcher between loops, but
+        # its CPU/mmap-backed GGUF matrix tensors remain owned by the cached
+        # model and are not reparsed from disk.
+        with _CLIP_CACHE_LOCK:
+            if _CLIP_CACHE is not None and _CLIP_CACHE["key"] == cache_key:
+                clip = _CLIP_CACHE["clip"]
+                _LOG.info(
+                    "MyCLIPGGUF: CLIP_CACHE_HIT：%s；Linear chunk_rows=%d；"
+                    "复用现有 CLIP/mmap，不重新读取文本 GGUF 或 mmproj。",
+                    os.path.basename(clip_path), int(linear_chunk_rows),
+                )
+                _memory_info("CLIP cache hit")
+                return (clip,)
 
-        clip_type = comfy.sd.CLIPType.QWEN_IMAGE
-        clip = comfy.sd.load_text_encoder_state_dicts(
-            state_dicts=[state_dict],
-            clip_type=clip_type,
-            model_options=model_options,
-            embedding_directory=folder_paths.get_folder_paths("embeddings"),
-        )
-        if clip is None or getattr(clip, "patcher", None) is None:
-            raise RuntimeError("MyCLIPGGUF: ComfyUI 没有成功构建 Qwen Image 2.1 CLIP。")
+            _LOG.info(
+                "MyCLIPGGUF: CLIP_CACHE_MISS：%s；Linear chunk_rows=%d；开始构建。",
+                os.path.basename(clip_path), int(linear_chunk_rows),
+            )
+            state_dict, extra = _load_qwen_image21_state_dict(clip_path)
 
-        # Reuse the installed plugin's GGUF-aware patcher. Streamable 2D
-        # MyGGMLTensor parameters refuse full-device migration, while other
-        # model parameters follow the ordinary ComfyUI load/offload behavior.
-        clip.patcher = vendor["nodes"].GGUFModelPatcher.clone(clip.patcher)
-        _stage_done("CLIP 构建及 patcher 克隆", stage_start)
-        _memory_info("after CLIP build")
+            stage_start = time.perf_counter()
+            _LOG.info("MyCLIPGGUF: [4/4] 开始构建 CLIP 文本编码器。")
+            _memory_info("before CLIP build")
+            operations = _make_operations_class(linear_chunk_rows)
+            model_options = {
+                "custom_operations": operations,
+                "initial_device": comfy.model_management.text_encoder_offload_device(),
+            }
 
-        # Drop temporary containers; model parameters may still reference mmap storage.
-        del state_dict
-        del extra
-        collected = gc.collect()
-        _LOG.info("MyCLIPGGUF: 临时 state_dict/extra 引用已释放，GC 回收对象数=%d。", collected)
-        _memory_info("after temporary state_dict release")
-        _install_encode_diagnostics(clip)
+            clip_type = comfy.sd.CLIPType.QWEN_IMAGE
+            clip = comfy.sd.load_text_encoder_state_dicts(
+                state_dicts=[state_dict],
+                clip_type=clip_type,
+                model_options=model_options,
+                embedding_directory=folder_paths.get_folder_paths("embeddings"),
+            )
+            if clip is None or getattr(clip, "patcher", None) is None:
+                raise RuntimeError("MyCLIPGGUF: ComfyUI 没有成功构建 Qwen Image 2.1 CLIP。")
 
-        _LOG.info(
-            "MyCLIPGGUF: CLIP 加载完成：%s；Linear chunk_rows=%d；"
-            "文本编码器仍输出原生 CLIP 对象；总耗时 %.2f 秒。",
-            os.path.basename(clip_path), int(linear_chunk_rows),
-            time.perf_counter() - total_start,
-        )
-        return (clip,)
+            # Reuse the installed plugin's GGUF-aware patcher. Streamable 2D
+            # MyGGMLTensor parameters refuse full-device migration, while other
+            # model parameters follow the ordinary ComfyUI load/offload behavior.
+            clip.patcher = vendor["nodes"].GGUFModelPatcher.clone(clip.patcher)
+            _stage_done("CLIP 构建及 patcher 克隆", stage_start)
+            _memory_info("after CLIP build")
+
+            # Keep the mmap-backed model alive in _CLIP_CACHE. Only temporary
+            # state-dict containers are dropped; the model owns the tensor views.
+            del state_dict
+            del extra
+            collected = gc.collect()
+            _LOG.info("MyCLIPGGUF: 临时 state_dict/extra 引用已释放，GC 回收对象数=%d。", collected)
+            _memory_info("after temporary state_dict release")
+            _install_encode_diagnostics(clip)
+
+            # Single-entry cache avoids retaining multiple large text encoders.
+            _CLIP_CACHE = {"key": cache_key, "clip": clip}
+
+            _LOG.info(
+                "MyCLIPGGUF: CLIP 加载完成并已缓存：%s；Linear chunk_rows=%d；"
+                "总耗时 %.2f 秒。",
+                os.path.basename(clip_path), int(linear_chunk_rows),
+                time.perf_counter() - total_start,
+            )
+            return (clip,)
 
 
 NODE_CLASS_MAPPINGS = {
