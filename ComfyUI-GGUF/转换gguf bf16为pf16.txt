@@ -1,0 +1,2 @@
+C:\Users\sonil>"D:\comfyui-rocm-091926\comfyui-rocm\python_env\python.exe" "D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\ComfyUI-GGUF\convert_gguf_bf16_to_f16.py" "D:\comfyui-rocm-091926\comfyui-rocm\models\unet\REDQW21-UNLOCKED-v3-Q8-builtwithqwen.GGUF" "D:\comfyui-rocm-091926\comfyui-rocm\models\unet\REDQW21-UNLOCKED-v3-Q8-F16.GGUF"
+Input : D:\comfyui-rocm-091926\comfyui-rocm\models\unet\REDQW21-UNLOCKED-v3-Q8-builtwithqwen.GGUF
