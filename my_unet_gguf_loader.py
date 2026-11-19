@@ -54,6 +54,53 @@ def _is_my_gguf_patcher(patcher):
     )
 
 
+def _log_gguf_runtime(stage, loaded_model=None, patcher=None):
+    """Log ComfyUI model registration and ROCm/PyTorch allocator state."""
+    try:
+        loaded_models = tuple(
+            getattr(comfy.model_management, "current_loaded_models", ())
+        )
+        registered = loaded_model in loaded_models if loaded_model is not None else None
+        keepalive = bool(
+            loaded_model is not None
+            and getattr(loaded_model, "_my_gguf_keepalive", None)
+            is getattr(loaded_model, "model", None)
+        )
+        model_name = type(patcher).__name__ if patcher is not None else "unknown"
+
+        memory = "allocator=unavailable"
+        try:
+            if torch.cuda.is_available():
+                stats = torch.cuda.memory_stats()
+                allocated = torch.cuda.memory_allocated() / (1024 ** 2)
+                reserved = torch.cuda.memory_reserved() / (1024 ** 2)
+                free_total = torch.cuda.mem_get_info()
+                free_mb = free_total[0] / (1024 ** 2)
+                total_mb = free_total[1] / (1024 ** 2)
+                active = stats.get("active_bytes.all.current", 0) / (1024 ** 2)
+                memory = (
+                    f"allocated={allocated:.0f}MB reserved={reserved:.0f}MB "
+                    f"active={active:.0f}MB free={free_mb:.0f}MB "
+                    f"total={total_mb:.0f}MB"
+                )
+        except Exception as exc:
+            memory = f"allocator_error={type(exc).__name__}"
+
+        logging.info(
+            "%s RUNTIME %s model=%s loaded_models=%d registered=%s "
+            "keepalive=%s %s",
+            _LOG_PREFIX,
+            stage,
+            model_name,
+            len(loaded_models),
+            registered,
+            keepalive,
+            memory,
+        )
+    except Exception:
+        logging.exception("%s RUNTIME_DIAGNOSTIC_FAILED stage=%s", _LOG_PREFIX, stage)
+
+
 def _install_persistent_vram_hooks():
     mm = comfy.model_management
     loaded_model_cls = getattr(mm, "LoadedModel", None)
@@ -71,6 +118,7 @@ def _install_persistent_vram_hooks():
     if not getattr(original_model_load, "_my_gguf_keepalive_hook", False):
 
         def model_load_with_keepalive(self, *args, **kwargs):
+            _log_gguf_runtime("MODEL_LOAD_BEGIN", self, self.model)
             result = original_model_load(self, *args, **kwargs)
             patcher = self.model
 
@@ -81,6 +129,7 @@ def _install_persistent_vram_hooks():
                 if hasattr(self, "_my_gguf_keepalive"):
                     del self._my_gguf_keepalive
 
+            _log_gguf_runtime("MODEL_LOAD_COMPLETE", self, patcher)
             return result
 
         model_load_with_keepalive._my_gguf_keepalive_hook = True
@@ -93,11 +142,13 @@ def _install_persistent_vram_hooks():
     if not getattr(original_model_unload, "_my_gguf_keepalive_hook", False):
 
         def model_unload_with_keepalive(self, *args, **kwargs):
+            _log_gguf_runtime("MODEL_UNLOAD_BEGIN", self, self.model)
             result = original_model_unload(self, *args, **kwargs)
 
             if result is True and hasattr(self, "_my_gguf_keepalive"):
                 del self._my_gguf_keepalive
 
+            _log_gguf_runtime("MODEL_UNLOAD_COMPLETE", self, self.model)
             return result
 
         model_unload_with_keepalive._my_gguf_keepalive_hook = True
@@ -2104,6 +2155,14 @@ def _build_cached_model(
     ops.Linear.patch_dtype = patch_dtype
     ops.Linear.gpu_dequant_chunk_rows = int(chunk_rows)
 
+    logging.info(
+        "%s MODEL_BUILD_BEGIN file=%s chunk_rows=%d patch_on_device=%s",
+        _LOG_PREFIX,
+        os.path.basename(unet_path),
+        int(chunk_rows),
+        bool(patch_on_device),
+    )
+
     state_dict, extra, reader = gguf_sd_loader(
         unet_path,
         return_reader=True,
@@ -2154,7 +2213,7 @@ def _build_cached_model(
     }
 
     logging.info(
-        "%s model cached: arch=%s",
+        "%s MODEL_BUILD_COMPLETE arch=%s",
         _LOG_PREFIX,
         extra.get("arch_str"),
     )
@@ -2193,6 +2252,7 @@ def _get_cached_model(
             )
 
             base_model = _MODEL_CACHE["model"]
+            _log_gguf_runtime("CACHE_HIT", patcher=base_model)
 
         else:
             logging.info(
@@ -2210,6 +2270,7 @@ def _get_cached_model(
             )
 
             _MODEL_CACHE["key"] = cache_key
+            _log_gguf_runtime("CACHE_MISS_BUILD_COMPLETE", patcher=base_model)
 
         # Return an independent ModelPatcher clone.
         # ComfyUI can manage patches and load state on this clone
