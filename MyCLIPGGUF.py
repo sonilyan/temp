@@ -576,7 +576,7 @@ def _make_operations_class(chunk_rows):
 
         def _save_to_state_dict(self, destination, prefix, keep_vars):
             if isinstance(self.weight, MyGGMLTensor) and getattr(self.weight, "my_stream_cpu", False):
-                return self.ggml_save_to_state_dict(self, destination, prefix, keep_vars)
+                return self.ggml_save_to_state_dict(destination, prefix, keep_vars)
             return super()._save_to_state_dict(destination, prefix, keep_vars)
 
         def forward_comfy_cast_weights(self, input_tensor):
@@ -654,7 +654,7 @@ def _make_operations_class(chunk_rows):
 
         def _save_to_state_dict(self, destination, prefix, keep_vars):
             if isinstance(self.weight, MyGGMLTensor) and getattr(self.weight, "my_stream_cpu", False):
-                return self.ggml_save_to_state_dict(self, destination, prefix, keep_vars)
+                return self.ggml_save_to_state_dict(destination, prefix, keep_vars)
             return super()._save_to_state_dict(destination, prefix, keep_vars)
 
         def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict,
