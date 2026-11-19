@@ -1649,7 +1649,6 @@ class GGMLOps(comfy.ops.manual_cast):
                 out_dtype = None
 
             weight, _bias = self.cast_bias_weight(
-                self,
                 device=input.device,
                 dtype=out_dtype,
             )
