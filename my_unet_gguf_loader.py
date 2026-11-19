@@ -667,6 +667,21 @@ def gguf_sd_loader(
             (sd_key, tensor)
         )
 
+    # Report quantization types for the tensors actually selected for this DiT.
+    qtype_counts = collections.Counter(
+        getattr(tensor.tensor_type, "name", str(tensor.tensor_type))
+        for _sd_key, tensor in tensors
+    )
+    qtype_summary = ", ".join(
+        f"{qtype} ({count})"
+        for qtype, count in sorted(qtype_counts.items())
+    )
+    logging.info(
+        "%s GGUF qtypes: %s",
+        _LOG_PREFIX,
+        qtype_summary or "none",
+    )
+
     arch_str = get_field(
         reader,
         "general.architecture",
