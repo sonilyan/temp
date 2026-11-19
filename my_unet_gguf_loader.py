@@ -9,7 +9,7 @@
 # - Linear residual / residual_scale support
 # - Optional GPU Q8_0 row-chunk dequantization
 # - Standard ComfyUI MODEL output and ModelPatcher integration
-# - Process-level model cache with GGUF Reader retention
+# - GPU-resident Q8_0 weights with GGUF mmap release after GPU copy
 #
 # Install:
 #   ComfyUI/custom_nodes/my_unet_gguf_loader.py
@@ -22,6 +22,7 @@ import warnings
 import collections
 import inspect
 import threading
+import gc
 
 import torch
 import torch.nn.functional as F
@@ -1245,7 +1246,6 @@ class GGMLLayer(torch.nn.Module):
             destination[prefix + "temp.weight"] = temp
 
         return
-
     def get_weight(
         self,
         tensor,
@@ -1807,238 +1807,115 @@ class GGUFModelPatcher(
 ):
     patch_on_device = False
     mmap_released = False
-    named_modules_to_munmap = {}
 
-    def patch_weight_to_device(
-        self,
-        key,
-        device_to=None,
-        inplace_update=False,
-    ):
+    def patch_weight_to_device(self, key, device_to=None, inplace_update=False):
         if key not in self.patches:
             return
-
-        weight = comfy.utils.get_attr(
-            self.model,
-            key,
-        )
-
+        weight = comfy.utils.get_attr(self.model, key)
         patches = self.patches[key]
-
         if is_quantized(weight):
             out_weight = weight.to(device_to)
-
             patches = move_patch_to_device(
                 patches,
-                self.load_device
-                if self.patch_on_device
-                else self.offload_device,
+                self.load_device if self.patch_on_device else self.offload_device,
             )
-
-            out_weight.patches = [
-                (patches, key)
-            ]
-
+            out_weight.patches = [(patches, key)]
         else:
-            inplace_update = (
-                self.weight_inplace_update
-                or inplace_update
-            )
-
+            inplace_update = self.weight_inplace_update or inplace_update
             if key not in self.backup:
                 self.backup[key] = collections.namedtuple(
-                    "Dimension",
-                    ["weight", "inplace_update"],
+                    "Dimension", ["weight", "inplace_update"]
                 )(
-                    weight.to(
-                        device=self.offload_device,
-                        copy=inplace_update,
-                    ),
+                    weight.to(device=self.offload_device, copy=inplace_update),
                     inplace_update,
                 )
-
             if device_to is not None:
-                temp_weight = (
-                    comfy.model_management.cast_to_device(
-                        weight,
-                        device_to,
-                        torch.float32,
-                        copy=True,
-                    )
+                temp_weight = comfy.model_management.cast_to_device(
+                    weight, device_to, torch.float32, copy=True
                 )
-
             else:
-                temp_weight = weight.to(
-                    torch.float32,
-                    copy=True,
-                )
-
-            out_weight = comfy.lora.calculate_weight(
-                patches,
-                temp_weight,
-                key,
-            )
-
-            out_weight = comfy.float.stochastic_rounding(
-                out_weight,
-                weight.dtype,
-            )
-
+                temp_weight = weight.to(torch.float32, copy=True)
+            out_weight = comfy.lora.calculate_weight(patches, temp_weight, key)
+            out_weight = comfy.float.stochastic_rounding(out_weight, weight.dtype)
         if inplace_update:
-            comfy.utils.copy_to_param(
-                self.model,
-                key,
-                out_weight,
-            )
-
+            comfy.utils.copy_to_param(self.model, key, out_weight)
         else:
-            comfy.utils.set_attr_param(
-                self.model,
-                key,
-                out_weight,
-            )
+            comfy.utils.set_attr_param(self.model, key, out_weight)
 
-    def unpatch_model(
-        self,
-        device_to=None,
-        unpatch_weights=True,
-    ):
+    def unpatch_model(self, device_to=None, unpatch_weights=True):
         if unpatch_weights:
             for parameter in self.model.parameters():
                 if is_torch_compatible(parameter):
                     continue
-
-                patches = getattr(
-                    parameter,
-                    "patches",
-                    [],
-                )
-
+                patches = getattr(parameter, "patches", [])
                 if patches:
                     parameter.patches = []
-
         return super().unpatch_model(
             device_to=device_to,
             unpatch_weights=unpatch_weights,
         )
 
-    def pin_weight_to_device(self, key):
-        op_key = key.rsplit(".", 1)[0]
-
-        if (
-            not self.mmap_released
-            and op_key in self.named_modules_to_munmap
-        ):
-            module = self.named_modules_to_munmap[op_key]
-
-            module.to(self.load_device).to(
-                self.offload_device
-            )
-
-            del self.named_modules_to_munmap[op_key]
-
-        super().pin_weight_to_device(key)
-
-    def load(
-        self,
-        *args,
-        force_patch_weights=False,
-        **kwargs,
-    ):
-        if not self.mmap_released:
-            self.named_modules_to_munmap = dict(
-                self.model.named_modules()
-            )
-
+    def load(self, *args, force_patch_weights=False, **kwargs):
         super().load(
             *args,
             force_patch_weights=True,
             **kwargs,
         )
+        target_device = torch.device(self.load_device)
+        if target_device.type == "cpu":
+            raise RuntimeError(
+                f"{_LOG_PREFIX} GPU-resident mode requires "
+                "ComfyUI load_device to be a GPU."
+            )
+        if target_device.type == "cuda" and target_device.index is None:
+            target_device = torch.device("cuda", torch.cuda.current_device())
 
-        if not self.mmap_released:
-            linked = []
+        self.model.to(device=target_device)
+        if target_device.type == "cuda":
+            torch.cuda.synchronize(target_device)
 
-            if kwargs.get(
-                "lowvram_model_memory",
-                0,
-            ) > 0:
-                for name, module in self.named_modules_to_munmap.items():
-                    if hasattr(module, "weight"):
-                        device = getattr(
-                            module.weight,
-                            "device",
-                            None,
-                        )
+        misplaced = []
+        for name, parameter in self.model.named_parameters():
+            if parameter.device != target_device:
+                misplaced.append((name, str(parameter.device)))
+        for name, buffer in self.model.named_buffers():
+            if buffer.device != target_device:
+                misplaced.append((name, str(buffer.device)))
+        if misplaced:
+            preview = ", ".join(
+                f"{name}={device}" for name, device in misplaced[:8]
+            )
+            raise RuntimeError(
+                f"{_LOG_PREFIX} GPU residency verification failed: "
+                f"{len(misplaced)} tensors are not on "
+                f"{target_device}. Examples: {preview}"
+            )
 
-                        if device == self.offload_device:
-                            linked.append(
-                                (name, module)
-                            )
-                            continue
-
-                    if hasattr(module, "bias"):
-                        device = getattr(
-                            module.bias,
-                            "device",
-                            None,
-                        )
-
-                        if device == self.offload_device:
-                            linked.append(
-                                (name, module)
-                            )
-                            continue
-
-            if (
-                linked
-                and self.load_device != self.offload_device
-            ):
-                for name, module in linked:
-                    module.to(self.load_device).to(
-                        self.offload_device
-                    )
-
-            self.mmap_released = True
-            self.named_modules_to_munmap = {}
+        self.mmap_released = True
+        _release_cached_gguf_reader(self.model)
+        logging.info(
+            "%s GPU_RESIDENT device=%s parameters=%d buffers=%d",
+            _LOG_PREFIX,
+            target_device,
+            sum(1 for _ in self.model.parameters()),
+            sum(1 for _ in self.model.buffers()),
+        )
 
     def clone(self, *args, **kwargs):
         source_class = self.__class__
-
         self.__class__ = GGUFModelPatcher
-
         try:
-            new = super().clone(
-                *args,
-                **kwargs,
-            )
-
+            new = super().clone(*args, **kwargs)
         finally:
             self.__class__ = source_class
-
         new.__class__ = GGUFModelPatcher
-
-        new.patch_on_device = getattr(
-            self,
-            "patch_on_device",
-            False,
-        )
-
-        new.mmap_released = getattr(
-            self,
-            "mmap_released",
-            False,
-        )
-
+        new.patch_on_device = getattr(self, "patch_on_device", False)
+        new.mmap_released = getattr(self, "mmap_released", False)
         new._my_gguf_keep_loaded = getattr(
-            self,
-            "_my_gguf_keep_loaded",
-            False,
+            self, "_my_gguf_keep_loaded", False
         )
-
         if source_class != GGUFModelPatcher:
             new.size = 0
-
         return new
 
 
@@ -2049,8 +1926,46 @@ class GGUFModelPatcher(
 _MODEL_CACHE_LOCK = threading.RLock()
 
 # Single-entry cache:
-# Keep the most recently loaded model and its GGUF Reader alive.
+# Keep the GGUF Reader only until the model has independent GPU storage.
 _MODEL_CACHE = None
+
+
+def _release_cached_gguf_reader(model):
+    global _MODEL_CACHE
+
+    reader = None
+
+    with _MODEL_CACHE_LOCK:
+        if _MODEL_CACHE is None:
+            return False
+
+        cached_patcher = _MODEL_CACHE.get("model")
+
+        if (
+            cached_patcher is None
+            or getattr(cached_patcher, "model", None) is not model
+        ):
+            logging.warning(
+                "%s mmap release skipped: cached model identity differs",
+                _LOG_PREFIX,
+            )
+            return False
+
+        reader = _MODEL_CACHE.pop(
+            "reader",
+            None,
+        )
+
+    if reader is not None:
+        del reader
+        gc.collect()
+
+    logging.info(
+        "%s GGUF_READER_RELEASED",
+        _LOG_PREFIX,
+    )
+
+    return True
 
 
 def _resolve_dtype_option(value):
@@ -2205,8 +2120,7 @@ def _build_cached_model(
     model.patch_on_device = bool(patch_on_device)
     model._my_gguf_keep_loaded = False
 
-    # Keep both the patcher and reader alive.
-    # The reader retains the GGUF mmap-backed tensor storage.
+    # Keep the Reader until load() has copied model weights to GPU.
     _MODEL_CACHE = {
         "model": model,
         "reader": reader,
@@ -2348,7 +2262,7 @@ class MyUNetLoaderGGUFStream:
                 "keep_model_loaded": (
                     "BOOLEAN",
                     {
-                        "default": False,
+                        "default": True,
                     },
                 ),
             }
@@ -2366,7 +2280,7 @@ class MyUNetLoaderGGUFStream:
         dequant_dtype="default",
         patch_dtype="default",
         patch_on_device=False,
-        keep_model_loaded=False,
+        keep_model_loaded=True,
     ):
         if gpu_dequant_chunk_rows == "关闭":
             chunk_rows = 0
@@ -2404,11 +2318,8 @@ class MyUNetLoaderGGUFStream:
             patch_on_device=patch_on_device,
         )
 
-        # keep_model_loaded is a runtime residency preference.
-        # It does not change the underlying model construction.
-        model._my_gguf_keep_loaded = bool(
-            keep_model_loaded
-        )
+        # Keep the DiT resident between generations.
+        model._my_gguf_keep_loaded = True
 
         return (model,)
 
