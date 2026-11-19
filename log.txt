@@ -1,0 +1,962 @@
+[INFO] Initializing rocm-sdk...
+[INFO] Detecting GPU architecture...
+[INFO] GPU arch: gfx1030
+[INFO] Legacy GPU detected 鈥?applying RDNA1/2 SDP overrides.
+[INFO] Syncing tracked packages from requirements.txt...
+[INFO] [comfyui-rocm] 37ccf858bb starting with: [ disable-api-nodes cache-none  enable-manager enable-manager-legacy-ui disable-triton-backend  enable-assets  reserve-vram 1 disable-pinned-memory  use-quad-cross-attention ]
+
+[32m[INFO][0m setup plugin alembic.autogenerate.schemas
+[32m[INFO][0m setup plugin alembic.autogenerate.tables
+[32m[INFO][0m setup plugin alembic.autogenerate.types
+[32m[INFO][0m setup plugin alembic.autogenerate.constraints
+[32m[INFO][0m setup plugin alembic.autogenerate.defaults
+[32m[INFO][0m setup plugin alembic.autogenerate.comments
+[32m[INFO][0m setup plugin alembic.ext.checkconstraint_byname
+[WARNING] On windows we are currently forcing single GPU mode in ComfyUI due to a Nvidia related issue, if you want to disable this use: --cuda-device all
+[WARNING] --disable-api-nodes is deprecated and will be removed in a future version. It currently behaves like --offline. Use --offline to keep the frontend offline, or --disable-partner-nodes to only disable partner nodes.
+[WARNING]
+
+To use the `--enable-manager` feature, the `comfyui-manager` package must be installed first.
+command:
+        D:\comfyui-rocm-091926\comfyui-rocm\python_env\python.exe -m pip install -r D:\comfyui-rocm-091926\comfyui-rocm\manager_requirements.txt
+or using uv:
+        uv pip install -r D:\comfyui-rocm-091926\comfyui-rocm\manager_requirements.txt
+
+[START] Security scan
+[DONE] Security scan
+## ComfyUI-Manager: installing dependencies done.
+** ComfyUI startup time: 2026-11-19 12:32:37.477
+** Platform: Windows
+** Python version: 3.12.9 (tags/v3.12.9:fdb8142, Feb  4 2025, 15:27:58) [MSC v.1942 64 bit (AMD64)]
+** Python executable: D:\comfyui-rocm-091926\comfyui-rocm\python_env\python.exe
+** ComfyUI Path: D:\comfyui-rocm-091926\comfyui-rocm
+** ComfyUI Base Folder Path: D:\comfyui-rocm-091926\comfyui-rocm
+** User directory: D:\comfyui-rocm-091926\comfyui-rocm\user
+** ComfyUI-Manager config path: D:\comfyui-rocm-091926\comfyui-rocm\user\__manager\config.ini
+** Log path: D:\comfyui-rocm-091926\comfyui-rocm\user\comfyui.log
+[INFO]
+Prestartup times for custom nodes:
+[INFO]    2.7 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\ComfyUI-Manager
+[INFO]
+[INFO] Found comfy_kitchen backend cuda: {'available': True, 'disabled': True, 'unavailable_reason': None, 'capabilities': ['adaln', 'apply_rope', 'apply_rope1', 'apply_rope1_', 'apply_rope_', 'apply_rope_split_half', 'apply_rope_split_half1', 'apply_rope_split_half1_', 'apply_rope_split_half_', 'closest_hit_on_mesh', 'closest_point_on_mesh', 'connected_components', 'convrot_w4a4_linear', 'delaunay3d', 'dequantize_convrot_w4a4_weight', 'dequantize_int8_convrot_weight', 'dequantize_int8_convrot_weight_dtype', 'dequantize_int8_simple', 'dequantize_int8_simple_dtype', 'dequantize_nvfp4', 'dequantize_per_tensor_fp8', 'dequantize_w4a8_int8_weight', 'edge_collapse_checks', 'fp16_conv3d', 'fp16_conv3d_out', 'fp16_linear', 'gemv_awq_w4a16', 'group_norm_silu_pad3d', 'group_norm_silu_pad3d_out', 'group_norm_stats3d', 'mesh_bvh', 'min_cut', 'na3d', 'prepare_int4_weight_for_int8_linear', 'quantize_and_rotate_rowwise', 'quantize_convrot_w4a4_weight', 'quantize_int8_convrot_weight', 'quantize_int8_rowwise', 'quantize_int8_tensorwise', 'quantize_mxfp8', 'quantize_nvfp4', 'quantize_per_tensor_fp8', 'quantize_svdquant_w4a4', 'quantize_w4a8_int8_weight', 'rms_adaln', 'rms_rope', 'rms_rope1', 'rms_rope1_', 'rms_rope_', 'rms_rope_split_half', 'rms_rope_split_half1', 'rms_rope_split_half1_', 'rms_rope_split_half_', 'rotate_int8_convrot_weight', 'scaled_mm_svdquant_w4a4', 'sol_attn', 'stochastic_rounding_fp8', 'w4a8_int8_linear', 'w4a8_packed_linear', 'window_attention']}
+[INFO] Found comfy_kitchen backend ascend: {'available': False, 'disabled': False, 'unavailable_reason': "torch-npu is not installed: No module named 'torch_npu'", 'capabilities': []}
+[INFO] Found comfy_kitchen backend eager: {'available': True, 'disabled': False, 'unavailable_reason': None, 'capabilities': ['adaln', 'apply_rope', 'apply_rope1', 'apply_rope1_', 'apply_rope_', 'apply_rope_split_half', 'apply_rope_split_half1', 'apply_rope_split_half1_', 'apply_rope_split_half_', 'convrot_w4a4_linear', 'dequantize_convrot_w4a4_weight', 'dequantize_int8_convrot_weight', 'dequantize_int8_convrot_weight_dtype', 'dequantize_int8_embedding', 'dequantize_int8_simple', 'dequantize_int8_simple_dtype', 'dequantize_mxfp8', 'dequantize_nvfp4', 'dequantize_per_tensor_fp8', 'dequantize_w4a8_int8_weight', 'fp16_conv3d', 'fp16_conv3d_out', 'fp16_linear', 'gemv_awq_w4a16', 'group_norm_silu_pad3d', 'group_norm_silu_pad3d_out', 'group_norm_stats3d', 'int8_linear', 'int8_linear_modulated', 'int8_linear_rms_modulated', 'na3d', 'prepare_int4_weight_for_int8_linear', 'quantize_and_rotate_rowwise', 'quantize_convrot_w4a4_weight', 'quantize_int8_convrot_weight', 'quantize_int8_rowwise', 'quantize_int8_tensorwise', 'quantize_mxfp8', 'quantize_nvfp4', 'quantize_per_tensor_fp8', 'quantize_svdquant_w4a4', 'quantize_w4a8_int8_weight', 'rms_adaln', 'rms_gated_residual', 'rms_rope', 'rms_rope1', 'rms_rope1_', 'rms_rope_', 'rms_rope_split_half', 'rms_rope_split_half1', 'rms_rope_split_half1_', 'rms_rope_split_half_', 'rotate_int8_convrot_weight', 'scaled_mm_mxfp8', 'scaled_mm_nvfp4', 'scaled_mm_svdquant_w4a4', 'sol_attn', 'stochastic_rounding_fp8', 'w4a8_int8_linear', 'w4a8_packed_linear', 'window_attention']}
+[INFO] Found comfy_kitchen backend hip: {'available': True, 'disabled': False, 'unavailable_reason': None, 'capabilities': ['adaln', 'apply_rope', 'apply_rope1', 'apply_rope1_', 'apply_rope_', 'apply_rope_split_half', 'apply_rope_split_half1', 'apply_rope_split_half1_', 'apply_rope_split_half_', 'dequantize_convrot_w4a4_weight', 'dequantize_int8_convrot_weight_dtype', 'dequantize_int8_simple_dtype', 'dequantize_per_tensor_fp8', 'dequantize_w4a8_int8_weight', 'gemv_awq_w4a16', 'group_norm_silu_pad3d', 'group_norm_silu_pad3d_out', 'group_norm_stats3d', 'quantize_and_rotate_rowwise', 'quantize_convrot_w4a4_weight', 'quantize_int8_convrot_weight', 'quantize_int8_rowwise', 'quantize_int8_tensorwise', 'quantize_per_tensor_fp8', 'quantize_svdquant_w4a4', 'quantize_w4a8_int8_weight', 'rms_adaln', 'rms_gated_residual', 'rms_rope', 'rms_rope1', 'rms_rope1_', 'rms_rope_', 'rms_rope_split_half', 'rms_rope_split_half1', 'rms_rope_split_half1_', 'rms_rope_split_half_', 'stochastic_rounding_fp8']}
+[INFO] Found comfy_kitchen backend triton: {'available': True, 'disabled': True, 'unavailable_reason': None, 'capabilities': ['adaln', 'apply_rope', 'apply_rope1', 'apply_rope1_', 'apply_rope_', 'apply_rope_split_half', 'apply_rope_split_half1', 'apply_rope_split_half1_', 'apply_rope_split_half_', 'dequantize_nvfp4', 'dequantize_per_tensor_fp8', 'int8_linear', 'na3d', 'quantize_and_rotate_rowwise', 'quantize_int8_rowwise', 'quantize_mxfp8', 'quantize_nvfp4', 'quantize_per_tensor_fp8', 'rms_adaln', 'rms_rope', 'rms_rope1', 'rms_rope1_', 'rms_rope_', 'rms_rope_split_half', 'rms_rope_split_half1', 'rms_rope_split_half1_', 'rms_rope_split_half_', 'w4a8_int8_linear']}
+[INFO] Checkpoint files will always be loaded safely.
+[INFO] Total VRAM 16368 MB, total RAM 16309 MB
+[INFO] pytorch version: 2.14.0+rocm10.1.0
+[INFO] AMD arch: gfx1030
+[INFO] ROCm version: (7, 16)
+[INFO] Set vram state to: NORMAL_VRAM
+[INFO] Device: cuda:0 AMD Radeon RX 6800 XT : native
+[INFO] Using async weight offloading with 2 streams
+[SageAttention] Loaded 0 autotune configs from disk cache
+[aiter] Windows: CK and HIP ops are not available. Triton ops only.
+[INFO] Using sub quadratic optimization for attention, if you have memory or speed issues try using: --use-split-cross-attention
+[INFO] aimdo: src-win/cuda-detour.c:38:INFO:aimdo_setup_hooks: installing 6 hooks
+[INFO] aimdo: src-win/shmem-detect.c:76:INFO:comfy-aimdo DXCore adapter match: AMD Radeon RX 6800 XT runtime_luid=00000000:0000e560
+[INFO] aimdo: src-win/shmem-detect.c:112:INFO:comfy-aimdo WDDM adapter match: AMD Radeon RX 6800 XT runtime_luid=00000000:0000e560 dxgi_luid=00000000:0000e560
+[INFO] aimdo: src/control.c:284:INFO:comfy-aimdo inited for GPU: AMD Radeon RX 6800 XT (VRAM: 16368 MB)
+[INFO] DynamicVRAM support detected and enabled
+[INFO] Python version: 3.12.9 (tags/v3.12.9:fdb8142, Feb  4 2025, 15:27:58) [MSC v.1942 64 bit (AMD64)]
+[INFO] ComfyUI version: 0.45.0
+[INFO] comfy-aimdo version: 0.6.0
+[INFO] comfy-kitchen version: 0.2.41
+[INFO] comfyui-frontend-package version: 1.59.1
+[INFO] comfyui-workflow-templates version: 0.11.107
+[INFO] comfyui-embedded-docs version: 0.5.16
+[INFO] comfy-aimdo version: 0.6.0
+[INFO] comfy-kitchen version: 0.2.41
+[INFO] [Prompt Server] web root: D:\comfyui-rocm-091926\comfyui-rocm\python_env\Lib\site-packages\comfyui_frontend_package\static
+[INFO] [assets-event] assets.enabled hashing_enabled=false
+[INFO] No OpenGL_accelerate module loaded: No module named 'OpenGL_accelerate'
+[WARNING] Physical asset deletion patch installed: App Mode asset deletes will also remove unshared files under the output directory.
+[INFO] ComfyUI-GGUF: Allowing full torch compile
+[INFO] [comfyui-int8-fast-rocm] detected gfx1030 (not RDNA3/RDNA4) -- patching, this arch is assumed to lack working INT8 GEMM until confirmed otherwise -- patched registry.get_implementation('int8_linear') and the W4A8 eager backend's direct int8_linear reference -> rocm_int8_linear (Triton GEMM)
+[INFO] ### Loading: ComfyUI-Manager (V3.42)
+[INFO] [ComfyUI-Manager] network_mode: public
+[INFO] [ComfyUI-Manager] ComfyUI per-queue preview override detected (PR #11261). Manager's preview method feature is disabled. Use ComfyUI's --preview-method CLI option or 'Settings > Execution > Live preview method'.
+[INFO] ### ComfyUI Revision: 1 [37ccf858] | Released on '2026-11-14'
+[QWEN21 MIXED CACHE] QwenImage21Transformer2DModel patched
+[QWEN21 MIXED CACHE] Loaded version 1.1.0
+[QWEN21 MIXED CACHE] Custom node registered successfully
+[WARNING] MyCLIPGGUF: 已安装 GGUF RMSNorm 兼容补丁；输入激活只剥离 Tensor 子类，GGUF 权重按需反量化后再传给 PyTorch。
+[WARNING] ============================================================
+[Qwen21 FP16 Patch] Installed.
+Target: built-in Qwen-Image 2.1 / Qwen3-VL 8B TE only.
+TE compute, token embeddings, vision positional embeddings/RoPE and text RoPE: FP16.
+Vision/text intermediate dtype tracing enabled; final conditioning remains FP32.
+DiT, VAE and other models remain unchanged.
+============================================================
+[QWEN21 MLP CHUNK] Installed successfully. chunk_size=4096
+[QWEN21 PHASE] Hook installed on latent_preview.prepare_callback
+[WARNING] Skip D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\qwen_mlp_diag.py module for custom nodes due to the lack of NODE_CLASS_MAPPINGS or comfy_entrypoint (need one).
+[ViggleTurbo] 10-step debug build loaded.
+[INFO]
+Import times for custom nodes:
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\limit_image.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\limit_image_pixels.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\get_image_filename.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\vae_quat.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\vaedecode.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\cut_image32.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\qwen_lora_bypass.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\websocket_image_save.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\qwen21_super_resolution_v3.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\asset_delete_physical.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\Qwen21_FP16_Patch.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\viggle_turbo_6_9_10.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\MyCLIPGGUF.py
+[INFO]    0.0 seconds (IMPORT FAILED): D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\qwen_mlp_diag.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\mixcache.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\comfyui-h3-sla-attention-rocm
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\ComfyUI-Dropdown-Switch
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\uniblockswap
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\comfyui-qwenmultiangle
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\my_unet_gguf_loader.py
+[INFO]    0.0 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\ComfyUI-GGUF
+[INFO]    0.5 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\ComfyUI-Manager
+[INFO]    1.1 seconds: D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\ComfyUI-INT8-Fast-ROCM
+[INFO]
+[INFO] Context impl SQLiteImpl.
+[INFO] Will assume non-transactional DDL.
+[INFO] Seeder start (roots=('models', 'input', 'output'), phase=full)
+[INFO] [assets-event] seeder.scan_started phase=full
+[INFO] Background asset scan initiated for models, input, output
+[INFO] [assets-event] seeder.marked_missing count=0 stage=pruning
+[INFO] Asset scan [models] directory: D:\comfyui-rocm-091926\comfyui-rocm\models
+[INFO] Asset scan [input] directories: ['D:\\comfyui-rocm-091926\\comfyui-rocm\\input']
+[INFO] Asset scan [output] directories: ['D:\\comfyui-rocm-091926\\comfyui-rocm\\output']
+[INFO] Fast scan complete: 0.020s total (created=0, skipped=73, total_paths=73)
+[INFO] Scan(('models', 'input', 'output'), full) done 0.036s: created=0 enriched=0 skipped=73
+[INFO] [assets-event] seeder.scan_completed cpu_ms=31 created=0 dirs_listed_count=3 elapsed_ms=36 enrich_failed=0 enriched=0 files_statted_count=73 hash_failed=0 missing_marked_count=0 paused_ms=0 permission_denied=0 phase=full recovered_count=0 skipped=73
+[INFO] Disabling intermediate node cache.
+[INFO] ComfyUI is developed by Comfy Org. We also offer commercial products to deploy ComfyUI as scalable cloud endpoints. Visit platform.comfy.org/ascii for more information.
+[INFO] Starting server
+
+[INFO] To see the GUI go to: http://0.0.0.0:8188
+[INFO] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/alter-list.json
+[INFO] Seeder start (roots=('models', 'input', 'output'), phase=full)
+[INFO] [assets-event] seeder.scan_started phase=full
+[INFO] Asset scan [models] directory: D:\comfyui-rocm-091926\comfyui-rocm\models
+[INFO] Asset scan [input] directories: ['D:\\comfyui-rocm-091926\\comfyui-rocm\\input']
+[INFO] Asset scan [output] directories: ['D:\\comfyui-rocm-091926\\comfyui-rocm\\output']
+[INFO] Fast scan complete: 0.069s total (created=0, skipped=73, total_paths=73)
+[INFO] ComfyUI-GGUF: Allowing full torch compile
+[INFO] Scan(('models', 'input', 'output'), full) done 0.078s: created=0 enriched=0 skipped=73
+[INFO] [assets-event] seeder.scan_completed cpu_ms=31 created=0 dirs_listed_count=3 elapsed_ms=78 enrich_failed=0 enriched=0 files_statted_count=73 hash_failed=0 missing_marked_count=0 paused_ms=0 permission_denied=0 phase=full recovered_count=0 skipped=73
+[INFO] MyCLIPGGUF: 使用 ComfyUI-GGUF 插件目录：D:\comfyui-rocm-091926\comfyui-rocm\custom_nodes\ComfyUI-GGUF
+[INFO] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/model-list.json
+[INFO] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/github-stats.json
+[INFO] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/custom-node-list.json
+[INFO] [ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/extension-node-map.json
+[INFO] got prompt
+[INFO] Model storage policy: fast_disk=False paths=['D:\\comfyui-rocm-091926\\comfyui-rocm\\models\\vae\\texture_fix_vae_for_qwen_image_2.1_bf16.safetensors']
+[INFO] Using split attention in VAE
+[INFO] Using split attention in VAE
+[INFO] VAE load device: cuda:0, offload device: cpu, dtype: torch.float16
+[WARNING] [VAE QUAD] Successfully patched 2 Attention modules.
+[WARNING] [VAE QUAD] Patched module: AttentionBlock
+[WARNING] [VAE QUAD] Patched module: AttentionBlock
+[INFO] gguf qtypes: Q8_0 (254), F32 (145)
+[INFO] MyCLIPGGUF: GGMLTensor 包装完成：399 个；其中 254 个二维权重保持 CPU/mmap 并采用流式读取。
+[INFO] Attenpting to find mmproj file for text encoder...
+[INFO] Using mmproj 'Qwen3-VL-8B-Instruct-heretic.mmproj-f16.gguf' for text encoder 'Qwen3-VL-8B-Instruct-heretic.Q8_0.gguf'.
+[INFO] gguf qtypes: F32 (234), F16 (118)
+[INFO] MyCLIPGGUF: Qwen3-VL state dict ready; arch=qwen3vl, token_embd=(151936, 4096). 跳过了原版 gguf_clip_loader 的整 张词表预反量化。
+[INFO] Model storage policy: fast_disk=False paths=[]
+[INFO] [Qwen21 FP16] ModelPatcher compute dtype forced to FP16
+[INFO] CLIP/text encoder model load device: cuda:0, offload device: cpu, current: cpu, dtype: torch.float16
+[INFO] MyCLIPGGUF: CLIP 加载完成：Qwen3-VL-8B-Instruct-heretic.Q8_0.gguf；Linear chunk_rows=2048；文本编码器仍输出原生 CLIP 对象。
+[INFO] Requested to load WanVAE
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_BEGIN model=ModelPatcherDynamic loaded_models=0 registered=False keepalive=False allocated=0MB reserved=0MB active=0MB free=16228MB total=16368MB
+[INFO] Model WanVAE prepared for dynamic VRAM loading. 644MB Staged. 0 patches attached. Force pre-loaded 68 weights: 102 KB.
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_COMPLETE model=ModelPatcherDynamic loaded_models=0 registered=False keepalive=False allocated=0MB reserved=2MB active=0MB free=16216MB total=16368MB
+MIOpen: Warning [OpenRuntimeLibraryForDevice] CK grouped conv library not found for device gfx1030: 找不到指定的模块。
+
+MIOpen: Warning [ParseAndLoadDb] File is unreadable: "D:\\comfyui-rocm-091926\\comfyui-rocm\\python_env\\Lib\\site-packages\\_rocm_sdk_devel\\bin\\gfx1030_36.HIP.fdb.txt"
+[WARNING] [VAE QUAD] Activated: shape=(1, 768, 66, 48) tokens=3168 channels=768 dtype=torch.float16 device=cuda:0
+[WARNING] [SUB_QUAD_STREAM] call=1 phase=streaming device=cuda:0 q=3168 k=3168 bh=1 dtype=torch.float16 upcast=False free=15.32GiB operand_copy=0.00GiB q_chunk=1024 kv_chunk=3168 score_tile=0.01GiB estimated_workspace=0.02GiB
+[INFO] Requested to load QwenImage21TEModelFP16
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_BEGIN model=GGUFModelPatcher loaded_models=1 registered=False keepalive=False allocated=32MB reserved=190MB active=32MB free=15477MB total=16368MB
+[INFO] loaded completely; 13791.25 MB usable, 8936.87 MB loaded, full load: True
+[INFO] Attempting to release mmap (254)
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_COMPLETE model=GGUFModelPatcher loaded_models=1 registered=False keepalive=False allocated=1144MB reserved=1224MB active=1144MB free=14433MB total=16368MB
+[INFO] MyCLIPGGUF Embedding gather: vocab=151936 hidden=4096, unique_rows=35/151936, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.patch_embed output=torch.float16
+[INFO] [Qwen21 FP16] vision fast_pos_embed_interpolate output=torch.float16
+[INFO] [Qwen21 FP16] vision rot_pos_emb output=torch.float16
+[WARNING] [SUB_QUAD_STREAM] call=2 phase=streaming device=cuda:0 q=3168 k=3168 bh=16 dtype=torch.float16 upcast=False free=14.10GiB operand_copy=0.01GiB q_chunk=1024 kv_chunk=3168 score_tile=0.10GiB estimated_workspace=0.29GiB
+[INFO] [Qwen21 FP16 TRACE] vision.blocks.0 output=torch.float16
+[WARNING] [SUB_QUAD_STREAM] call=3 phase=streaming device=cuda:0 q=3168 k=3168 bh=16 dtype=torch.float16 upcast=False free=14.05GiB operand_copy=0.01GiB q_chunk=1024 kv_chunk=3168 score_tile=0.10GiB estimated_workspace=0.29GiB
+[WARNING] [SUB_QUAD_STREAM] call=4 phase=streaming device=cuda:0 q=3168 k=3168 bh=16 dtype=torch.float16 upcast=False free=14.05GiB operand_copy=0.01GiB q_chunk=1024 kv_chunk=3168 score_tile=0.10GiB estimated_workspace=0.29GiB
+[WARNING] [SUB_QUAD_STREAM] call=5 phase=streaming device=cuda:0 q=3168 k=3168 bh=16 dtype=torch.float16 upcast=False free=14.05GiB operand_copy=0.01GiB q_chunk=1024 kv_chunk=3168 score_tile=0.10GiB estimated_workspace=0.29GiB
+[WARNING] [SUB_QUAD_STREAM] call=6 phase=streaming device=cuda:0 q=3168 k=3168 bh=16 dtype=torch.float16 upcast=False free=14.05GiB operand_copy=0.01GiB q_chunk=1024 kv_chunk=3168 score_tile=0.10GiB estimated_workspace=0.29GiB
+[WARNING] [SUB_QUAD_STREAM] call=7 phase=streaming device=cuda:0 q=3168 k=3168 bh=16 dtype=torch.float16 upcast=False free=14.05GiB operand_copy=0.01GiB q_chunk=1024 kv_chunk=3168 score_tile=0.10GiB estimated_workspace=0.29GiB
+[WARNING] [SUB_QUAD_STREAM] call=8 phase=streaming device=cuda:0 q=3168 k=3168 bh=16 dtype=torch.float16 upcast=False free=14.05GiB operand_copy=0.01GiB q_chunk=1024 kv_chunk=3168 score_tile=0.10GiB estimated_workspace=0.29GiB
+[INFO] [Qwen21 FP16 TRACE] vision.deepstack_merger.0 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.blocks.13 output=torch.float16
+[WARNING] [SUB_QUAD_STREAM] call=16 phase=streaming device=cuda:0 q=3168 k=3168 bh=16 dtype=torch.float16 upcast=False free=14.04GiB operand_copy=0.01GiB q_chunk=1024 kv_chunk=3168 score_tile=0.10GiB estimated_workspace=0.29GiB
+[INFO] [Qwen21 FP16 TRACE] vision.deepstack_merger.1 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.deepstack_merger.2 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.blocks.26 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.merger output=torch.float16
+[INFO] [Qwen21 FP16] vision input=torch.float16, vision output=torch.float16, DeepStack=[torch.float16, torch.float16, torch.float16]
+[INFO] [Qwen21 FP16] process_tokens: token/image/pad embeddings=torch.float16
+[INFO] [Qwen21 FP16] assembled transformer input=torch.float16
+[INFO] [Qwen21 FP16] text RoPE dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] [Qwen21 FP16 TRACE] text.layers.0 output=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_BEGIN model=GGUFModelPatcher loaded_models=1 registered=False keepalive=False allocated=1144MB reserved=1460MB active=1144MB free=14043MB total=16368MB
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_COMPLETE model=GGUFModelPatcher loaded_models=1 registered=False keepalive=False allocated=1144MB reserved=1460MB active=1144MB free=14043MB total=16368MB
+[INFO] [Qwen21 FP16 TRACE] vision.patch_embed output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.blocks.0 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.deepstack_merger.0 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.blocks.13 output=torch.float16
+[WARNING] [SUB_QUAD_STREAM] call=80 phase=streaming device=cuda:0 q=3168 k=3168 bh=16 dtype=torch.float16 upcast=False free=13.95GiB operand_copy=0.01GiB q_chunk=1024 kv_chunk=3168 score_tile=0.10GiB estimated_workspace=0.29GiB
+[INFO] [Qwen21 FP16 TRACE] vision.deepstack_merger.1 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.deepstack_merger.2 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.blocks.26 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.merger output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] text.layers.0 output=torch.float16
+[Qwen21SR V3 ENCODE] source=768x1056 (0.811MP), reference_vae=768x1056, crop_top=0, crop_right=0, reference_resize=OFF, vision_resize=OFF, vision_input=768x1056, reference_latent=(1, 64, 66, 48), texture_suppression=0.050, target=864x1184 (1.023MP), target_latent=(1, 64, 74, 54), target_tokens=3996
+[Qwen21SR V3 SIGMAS] mode=Viggle-6, latent=54x74, image_seq_len=3996, mu=0.6885081, terminal_stretch=OFF, selected_t=[1.0], sigmas=[1.0, 0.0]
+[INFO] [MyGGUFStream] cache MISS: REDQW21-UNLOCKED-v3-Q8-builtwithqwen.GGUF
+[INFO] [MyGGUFStream] MODEL_BUILD_BEGIN file=REDQW21-UNLOCKED-v3-Q8-builtwithqwen.GGUF chunk_rows=2048 patch_on_device=True
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[INFO] model weight dtype torch.float16, manual cast: None
+[INFO] model_type FLUX
+[INFO] Model storage policy: fast_disk=False paths=[]
+[INFO] [MyGGUFStream] MODEL_BUILD_COMPLETE arch=qwen_image21
+[INFO] [MyGGUFStream] RUNTIME CACHE_MISS_BUILD_COMPLETE model=GGUFModelPatcher loaded_models=1 registered=None keepalive=False allocated=33MB reserved=172MB active=33MB free=15421MB total=16368MB
+[QWEN21 PHASE] START phase=1 steps=1 (Streaming Attention + chunked MLP)
+[INFO] Requested to load QwenImage21
+[INFO] [MyGGUFStream] RUNTIME MODEL_UNLOAD_BEGIN model=ModelPatcherDynamic loaded_models=1 registered=True keepalive=False allocated=33MB reserved=172MB active=33MB free=15421MB total=16368MB
+[INFO] [MyGGUFStream] RUNTIME MODEL_UNLOAD_COMPLETE model=ModelPatcherDynamic loaded_models=1 registered=True keepalive=False allocated=33MB reserved=172MB active=33MB free=15701MB total=16368MB
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_BEGIN model=GGUFModelPatcher loaded_models=0 registered=False keepalive=False allocated=33MB reserved=172MB active=33MB free=15701MB total=16368MB
+[INFO] loaded completely; 8368.22 MB usable, 7367.88 MB loaded, full load: True
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_COMPLETE model=GGUFModelPatcher loaded_models=0 registered=False keepalive=True allocated=7498MB reserved=7500MB active=7498MB free=8177MB total=16368MB
+  0%|                                                                | 0/1 [00:00<?, ?it/s,   Model Initializing ...  ][WARNING] MyCLIPGGUF RMSNorm CALLSITE: x_dtype=torch.float32 x_shape=(1, 31, 4096) weight_dtype=torch.float32 weight_shape=(4096,) eps=1e-06
+  File "D:\comfyui-rocm-091926\comfyui-rocm\comfy\ldm\qwen_image21\model.py", line 457, in forward
+    return comfy.patcher_extension.WrapperExecutor.new_class_executor(
+  File "D:\comfyui-rocm-091926\comfyui-rocm\comfy\patcher_extension.py", line 113, in execute
+    return self.original(*args, **kwargs)
+  File "D:\comfyui-rocm-091926\comfyui-rocm\comfy\ldm\qwen_image21\model.py", line 471, in _forward
+    hidden_states, pe, segments = self.build_sequence(x, context, ref_latents, image_slots)
+  File "D:\comfyui-rocm-091926\comfyui-rocm\comfy\ldm\qwen_image21\model.py", line 428, in build_sequence
+    txt = self.txt_in(context)
+  File "D:\comfyui-rocm-091926\comfyui-rocm\python_env\Lib\site-packages\torch\nn\modules\module.py", line 1783, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "D:\comfyui-rocm-091926\comfyui-rocm\python_env\Lib\site-packages\torch\nn\modules\module.py", line 1794, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "D:\comfyui-rocm-091926\comfyui-rocm\comfy\ldm\qwen_image21\model.py", line 58, in forward
+    return self.out_layer(F.gelu(self.in_layer(self.text_norm(x)), approximate="tanh"))
+  File "D:\comfyui-rocm-091926\comfyui-rocm\python_env\Lib\site-packages\torch\nn\modules\module.py", line 1783, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "D:\comfyui-rocm-091926\comfyui-rocm\python_env\Lib\site-packages\torch\nn\modules\module.py", line 1794, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "D:\comfyui-rocm-091926\comfyui-rocm\comfy\ldm\qwen_image21\model.py", line 47, in forward
+    return comfy.rmsnorm.rms_norm(x.float(), w, self.eps).to(x.dtype)
+[INFO] MyCLIPGGUF RMSNorm DIAG: x_type=GGMLTensor x_original=torch.float32/cuda:0 x_final=torch.float32/cuda:0; weight_type=Tensor weight_original=torch.float32/cuda:0 qtype=None weight_after_dequant=None weight_before_cast=torch.float32/cuda:0 weight_final=torch.float32/cuda:0 shape=(4096,) eps=1e-06
+[INFO] MyCLIPGGUF RMSNorm DIAG OUT: input_dtype=torch.float32 weight_dtype=torch.float32 output_dtype=torch.float32 output_device=cuda:0
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[QwenPrefix] select_prefix_cache: dtype='int8' raw=1599.5 MB quantized=799.8 MB
+[QwenPrefix] select_prefix_cache: explicit store=cpu
+[QwenPrefix] select_prefix_cache: created PoseBranchCache store_device=cpu
+[QwenPrefix] select_prefix_cache: final check (cpu) ensure_pin_budget(799.8 MB) -> False
+[QwenPrefix] select_prefix_cache: REJECTED (final check) -> single-pass fallback
+[QWEN21 PHASE] SWITCH phase=2 (Legacy Attention + full MLP)
+[QWEN21 PHASE] END phase=0
+100%|█████████████████████████████████████████████████| 1/1 [00:14<00:00, 14.07s/it,  Model Initialization complete!  ]
+[INFO] Comfy model compiler graph breaks: 0, rogues: 0
+[INFO] Model storage policy: fast_disk=False paths=['D:\\comfyui-rocm-091926\\comfyui-rocm\\models\\vae\\texture_fix_vae_for_qwen_image_2.1_bf16.safetensors']
+[INFO] Using split attention in VAE
+[INFO] Using split attention in VAE
+[INFO] VAE load device: cuda:0, offload device: cpu, dtype: torch.float16
+[WARNING] [VAE QUAD] Successfully patched 2 Attention modules.
+[WARNING] [VAE QUAD] Patched module: AttentionBlock
+[WARNING] [VAE QUAD] Patched module: AttentionBlock
+[INFO] Requested to load WanVAE
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_BEGIN model=ModelPatcherDynamic loaded_models=1 registered=False keepalive=False allocated=7498MB reserved=7500MB active=7498MB free=8150MB total=16368MB
+[INFO] Model WanVAE prepared for dynamic VRAM loading. 644MB Staged. 0 patches attached. Force pre-loaded 68 weights: 102 KB.
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_COMPLETE model=ModelPatcherDynamic loaded_models=1 registered=False keepalive=False allocated=7498MB reserved=7500MB active=7498MB free=8150MB total=16368MB
+[WARNING] [SUB_QUAD_STREAM] call=256 phase=streaming device=cuda:0 q=3996 k=3996 bh=1 dtype=torch.float16 upcast=False free=7.52GiB operand_copy=0.01GiB q_chunk=1024 kv_chunk=3996 score_tile=0.01GiB estimated_workspace=0.02GiB
+[INFO] Prompt executed in 99.61 seconds
+[INFO] Seeder start (roots=('output',), phase=full)
+[INFO] [assets-event] seeder.scan_started phase=full root=output
+[INFO] Asset scan [output] directories: ['D:\\comfyui-rocm-091926\\comfyui-rocm\\output']
+[INFO] Fast scan complete: 0.017s total (created=0, skipped=38, total_paths=38)
+[INFO] Scan(('output',), full) done 0.024s: created=0 enriched=0 skipped=38
+[INFO] [assets-event] seeder.scan_completed cpu_ms=31 created=0 dirs_listed_count=1 elapsed_ms=24 enrich_failed=0 enriched=0 files_statted_count=0 hash_failed=0 missing_marked_count=0 paused_ms=0 permission_denied=0 phase=full recovered_count=0 root=output skipped=38
+[INFO] got prompt
+[INFO] Model storage policy: fast_disk=False paths=['D:\\comfyui-rocm-091926\\comfyui-rocm\\models\\vae\\texture_fix_vae_for_qwen_image_2.1_bf16.safetensors']
+[INFO] Using split attention in VAE
+[INFO] Using split attention in VAE
+[INFO] VAE load device: cuda:0, offload device: cpu, dtype: torch.float16
+[WARNING] [VAE QUAD] Successfully patched 2 Attention modules.
+[WARNING] [VAE QUAD] Patched module: AttentionBlock
+[WARNING] [VAE QUAD] Patched module: AttentionBlock
+[INFO] gguf qtypes: Q8_0 (254), F32 (145)
+[INFO] MyCLIPGGUF: GGMLTensor 包装完成：399 个；其中 254 个二维权重保持 CPU/mmap 并采用流式读取。
+[INFO] Attenpting to find mmproj file for text encoder...
+[INFO] Using mmproj 'Qwen3-VL-8B-Instruct-heretic.mmproj-f16.gguf' for text encoder 'Qwen3-VL-8B-Instruct-heretic.Q8_0.gguf'.
+[INFO] gguf qtypes: F32 (234), F16 (118)
+[INFO] MyCLIPGGUF: Qwen3-VL state dict ready; arch=qwen3vl, token_embd=(151936, 4096). 跳过了原版 gguf_clip_loader 的整 张词表预反量化。
+[INFO] Model storage policy: fast_disk=False paths=[]
+[INFO] [Qwen21 FP16] ModelPatcher compute dtype forced to FP16
+[INFO] CLIP/text encoder model load device: cuda:0, offload device: cpu, current: cpu, dtype: torch.float16
+[INFO] MyCLIPGGUF: CLIP 加载完成：Qwen3-VL-8B-Instruct-heretic.Q8_0.gguf；Linear chunk_rows=2048；文本编码器仍输出原生 CLIP 对象。
+[INFO] Requested to load WanVAE
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_BEGIN model=ModelPatcherDynamic loaded_models=1 registered=False keepalive=False allocated=7497MB reserved=7500MB active=7497MB free=8150MB total=16368MB
+[INFO] Model WanVAE prepared for dynamic VRAM loading. 644MB Staged. 0 patches attached. Force pre-loaded 68 weights: 102 KB.
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_COMPLETE model=ModelPatcherDynamic loaded_models=1 registered=False keepalive=False allocated=7497MB reserved=7500MB active=7497MB free=8150MB total=16368MB
+[INFO] Requested to load QwenImage21TEModelFP16
+[INFO] [MyGGUFStream] RUNTIME MODEL_UNLOAD_BEGIN model=ModelPatcherDynamic loaded_models=2 registered=True keepalive=False allocated=7497MB reserved=9252MB active=7497MB free=5582MB total=16368MB
+[INFO] [MyGGUFStream] RUNTIME MODEL_UNLOAD_COMPLETE model=ModelPatcherDynamic loaded_models=2 registered=True keepalive=False allocated=7497MB reserved=9252MB active=7497MB free=5916MB total=16368MB
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_BEGIN model=GGUFModelPatcher loaded_models=1 registered=False keepalive=False allocated=7497MB reserved=7500MB active=7497MB free=8118MB total=16368MB
+[INFO] loaded partially; 6277.82 MB usable, 6031.82 MB loaded, 2903.92 MB offloaded, 246.00 MB buffer reserved, lowvram patches: 0
+[INFO] Attempting to release mmap (241)
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_COMPLETE model=GGUFModelPatcher loaded_models=1 registered=False keepalive=False allocated=7510MB reserved=7532MB active=7510MB free=8086MB total=16368MB
+[INFO] MyCLIPGGUF Embedding gather: vocab=151936 hidden=4096, unique_rows=35/151936, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.patch_embed output=torch.float16
+[INFO] [Qwen21 FP16] vision fast_pos_embed_interpolate output=torch.float16
+[INFO] [Qwen21 FP16] vision rot_pos_emb output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.blocks.0 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.deepstack_merger.0 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.blocks.13 output=torch.float16
+[WARNING] [SUB_QUAD_STREAM] call=272 phase=streaming device=cuda:0 q=3168 k=3168 bh=16 dtype=torch.float16 upcast=False free=7.78GiB operand_copy=0.01GiB q_chunk=1024 kv_chunk=3168 score_tile=0.10GiB estimated_workspace=0.29GiB
+[INFO] [Qwen21 FP16 TRACE] vision.deepstack_merger.1 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.deepstack_merger.2 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.blocks.26 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.merger output=torch.float16
+[INFO] [Qwen21 FP16] vision input=torch.float16, vision output=torch.float16, DeepStack=[torch.float16, torch.float16, torch.float16]
+[INFO] [Qwen21 FP16] process_tokens: token/image/pad embeddings=torch.float16
+[INFO] [Qwen21 FP16] assembled transformer input=torch.float16
+[INFO] [Qwen21 FP16] text RoPE dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] [Qwen21 FP16 TRACE] text.layers.0 output=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (1024, 4096) -> (1024,), chunk_rows=2048, chunks=1, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (4096, 4096) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 4096) x (12288, 4096) -> (12288,), chunk_rows=2048, chunks=6, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] MyCLIPGGUF Linear stream: (1, 837, 12288) x (4096, 12288) -> (4096,), chunk_rows=2048, chunks=2, qtype=Q8_0, device=cuda:0, dtype=torch.float16
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_BEGIN model=GGUFModelPatcher loaded_models=1 registered=False keepalive=False allocated=7591MB reserved=7950MB active=7591MB free=7672MB total=16368MB
+[INFO] loaded completely; 12219.79 MB usable, 8936.87 MB loaded, full load: True
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_COMPLETE model=GGUFModelPatcher loaded_models=1 registered=False keepalive=False allocated=8691MB reserved=8854MB active=8691MB free=6768MB total=16368MB
+[INFO] [Qwen21 FP16 TRACE] vision.patch_embed output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.blocks.0 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.deepstack_merger.0 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.blocks.13 output=torch.float16
+[WARNING] [SUB_QUAD_STREAM] call=336 phase=streaming device=cuda:0 q=3168 k=3168 bh=16 dtype=torch.float16 upcast=False free=6.70GiB operand_copy=0.01GiB q_chunk=1024 kv_chunk=3168 score_tile=0.10GiB estimated_workspace=0.29GiB
+[INFO] [Qwen21 FP16 TRACE] vision.deepstack_merger.1 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.deepstack_merger.2 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.blocks.26 output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] vision.merger output=torch.float16
+[INFO] [Qwen21 FP16 TRACE] text.layers.0 output=torch.float16
+[Qwen21SR V3 ENCODE] source=768x1056 (0.811MP), reference_vae=768x1056, crop_top=0, crop_right=0, reference_resize=OFF, vision_resize=OFF, vision_input=768x1056, reference_latent=(1, 64, 66, 48), texture_suppression=0.050, target=864x1184 (1.023MP), target_latent=(1, 64, 74, 54), target_tokens=3996
+[Qwen21SR V3 SIGMAS] mode=Viggle-6, latent=54x74, image_seq_len=3996, mu=0.6885081, terminal_stretch=OFF, selected_t=[1.0], sigmas=[1.0, 0.0]
+[INFO] [MyGGUFStream] cache HIT: REDQW21-UNLOCKED-v3-Q8-builtwithqwen.GGUF
+[INFO] [MyGGUFStream] RUNTIME CACHE_HIT model=GGUFModelPatcher loaded_models=1 registered=None keepalive=False allocated=7498MB reserved=7500MB active=7498MB free=8150MB total=16368MB
+[QWEN21 PHASE] START phase=1 steps=1 (Streaming Attention + chunked MLP)
+[INFO] Requested to load QwenImage21
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_BEGIN model=GGUFModelPatcher loaded_models=0 registered=False keepalive=False allocated=7498MB reserved=7500MB active=7498MB free=8150MB total=16368MB
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_COMPLETE model=GGUFModelPatcher loaded_models=0 registered=False keepalive=True allocated=7498MB reserved=7500MB active=7498MB free=8150MB total=16368MB
+  0%|                                                                | 0/1 [00:00<?, ?it/s,   Model Initializing ...  ][INFO] MyCLIPGGUF RMSNorm DIAG: x_type=Tensor x_original=torch.float32/cuda:0 x_final=torch.float32/cuda:0; weight_type=Tensor weight_original=torch.float32/cuda:0 qtype=None weight_after_dequant=None weight_before_cast=torch.float32/cuda:0 weight_final=torch.float32/cuda:0 shape=(4096,) eps=1e-06
+[INFO] MyCLIPGGUF RMSNorm DIAG OUT: input_dtype=torch.float32 weight_dtype=torch.float32 output_dtype=torch.float32 output_device=cuda:0
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[WARNING] [MyGGUFStream] qtype BF16 uses GGUF CPU dequant fallback
+[QwenPrefix] select_prefix_cache: dtype='int8' raw=1599.5 MB quantized=799.8 MB
+[QwenPrefix] select_prefix_cache: explicit store=cpu
+[QwenPrefix] select_prefix_cache: created PoseBranchCache store_device=cpu
+[QwenPrefix] select_prefix_cache: final check (cpu) ensure_pin_budget(799.8 MB) -> False
+[QwenPrefix] select_prefix_cache: REJECTED (final check) -> single-pass fallback
+[QWEN21 PHASE] SWITCH phase=2 (Legacy Attention + full MLP)
+[QWEN21 PHASE] END phase=0
+100%|█████████████████████████████████████████████████| 1/1 [00:13<00:00, 13.36s/it,  Model Initialization complete!  ]
+[INFO] Comfy model compiler graph breaks: 0, rogues: 0
+[INFO] Model storage policy: fast_disk=False paths=['D:\\comfyui-rocm-091926\\comfyui-rocm\\models\\vae\\texture_fix_vae_for_qwen_image_2.1_bf16.safetensors']
+[INFO] Using split attention in VAE
+[INFO] Using split attention in VAE
+[INFO] VAE load device: cuda:0, offload device: cpu, dtype: torch.float16
+[WARNING] [VAE QUAD] Successfully patched 2 Attention modules.
+[WARNING] [VAE QUAD] Patched module: AttentionBlock
+[WARNING] [VAE QUAD] Patched module: AttentionBlock
+[INFO] Requested to load WanVAE
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_BEGIN model=ModelPatcherDynamic loaded_models=1 registered=False keepalive=False allocated=7498MB reserved=7500MB active=7498MB free=8150MB total=16368MB
+[INFO] Model WanVAE prepared for dynamic VRAM loading. 644MB Staged. 0 patches attached. Force pre-loaded 68 weights: 102 KB.
+[INFO] [MyGGUFStream] RUNTIME MODEL_LOAD_COMPLETE model=ModelPatcherDynamic loaded_models=1 registered=False keepalive=False allocated=7497MB reserved=7500MB active=7497MB free=8150MB total=16368MB
+[WARNING] [SUB_QUAD_STREAM] call=512 phase=streaming device=cuda:0 q=3996 k=3996 bh=1 dtype=torch.float16 upcast=False free=7.53GiB operand_copy=0.01GiB q_chunk=1024 kv_chunk=3996 score_tile=0.01GiB estimated_workspace=0.02GiB
+[INFO] Prompt executed in 63.48 seconds
+[INFO] Seeder start (roots=('output',), phase=full)
+[INFO] [assets-event] seeder.scan_started phase=full root=output
+[INFO] Asset scan [output] directories: ['D:\\comfyui-rocm-091926\\comfyui-rocm\\output']
+[INFO] Fast scan complete: 0.050s total (created=0, skipped=39, total_paths=39)
+[INFO] Scan(('output',), full) done 0.056s: created=0 enriched=0 skipped=39
+[INFO] [assets-event] seeder.scan_completed cpu_ms=31 created=0 dirs_listed_count=1 elapsed_ms=56 enrich_failed=0 enriched=0 files_statted_count=0 hash_failed=0 missing_marked_count=0 paused_ms=0 permission_denied=0 phase=full recovered_count=0 root=output skipped=39
