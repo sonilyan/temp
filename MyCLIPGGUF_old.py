@@ -781,10 +781,6 @@ def _load_qwen_image21_state_dict_impl(clip_path):
     return state_dict, extra
 
 
-# 全局持有 GGUF mmap readers，只创建一次
-_MMAP_READERS = None
-
-
 def _load_qwen_image21_state_dict(clip_path):
     """Load Qwen weights while retaining the text and mmproj mmap readers."""
     global _MMAP_READERS
@@ -826,10 +822,6 @@ class MyCLIPGGUFLoader:
         if not names:
             names = folder_paths.get_filename_list("clip_gguf")
         return {
-            "required": {
-                "clip_name": (names,),
-                "linear_chunk_rows": ([128, 256, 512, 1024, 2048], {"default": 512}),
-            }
             "required": {
                 "model": ("MODEL",),
                 "clip_name": (names,),
