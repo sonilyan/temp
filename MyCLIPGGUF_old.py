@@ -29,6 +29,10 @@ _LOG = logging.getLogger("MyCLIPGGUF")
 _VENDOR_PACKAGE_NAME = "_myclipgguf_vendor"
 _VENDOR = None
 
+# Diagnostic experiment: retain GGUFReader objects for the lifetime of this
+# module so their mmap-backed tensor storage remains explicitly referenced.
+_MMAP_READERS = []
+
 
 def _memory_info(label):
     """Log PyTorch CUDA/ROCm allocator statistics without clearing memory."""
@@ -700,16 +704,14 @@ def _make_operations_class(chunk_rows):
 
     MyGGMLOps.__name__ = "MyGGMLOps_Chunk%d" % chunk_rows
     return MyGGMLOps
-
-
 # -----------------------------------------------------------------------------
 # Qwen Image 2.1-specific GGUF state-dict preparation.
-# Do NOT call vendor gguf_clip_loader(): that function eagerly dequantizes the
+# DO NOT call vendor gguf_clip_loader(): that function eagerly dequantizes the
 # entire token_embd.weight table. We intentionally call gguf_sd_loader() and
 # reproduce only the Qwen3-VL key mapping + matching mmproj loading.
 # -----------------------------------------------------------------------------
 
-def _load_qwen_image21_state_dict(clip_path):
+def _load_qwen_image21_state_dict_impl(clip_path):
     vendor = _load_vendor_modules()
     loader = vendor["loader"]
 
@@ -779,7 +781,36 @@ def _load_qwen_image21_state_dict(clip_path):
     return state_dict, extra
 
 
-# -----------------------------------------------------------------------------
+# 全局持有 GGUF mmap readers，只创建一次
+_MMAP_READERS = None
+
+
+def _load_qwen_image21_state_dict(clip_path):
+    """Load Qwen weights while retaining the text and mmproj mmap readers."""
+    global _MMAP_READERS
+
+    if _MMAP_READERS is None:
+        _MMAP_READERS = []
+
+    gguf = importlib.import_module("gguf")
+    original_reader = gguf.GGUFReader
+
+    def _retained_reader(*args, **kwargs):
+        reader = original_reader(*args, **kwargs)
+        _MMAP_READERS.append(reader)
+        return reader
+
+    # Intercept GGUFReader construction and retain every reader globally.
+    gguf.GGUFReader = _retained_reader
+    try:
+        return _load_qwen_image21_state_dict_impl(clip_path)
+    finally:
+        gguf.GGUFReader = original_reader
+        _LOG.info(
+            "MyCLIPGGUF: mmap reader 保留：全局持有 %d 个 reader。",
+            len(_MMAP_READERS),
+        )# -----------------------------------------------------------------------------
+
 # ComfyUI node
 # -----------------------------------------------------------------------------
 
@@ -796,6 +827,11 @@ class MyCLIPGGUFLoader:
             names = folder_paths.get_filename_list("clip_gguf")
         return {
             "required": {
+                "clip_name": (names,),
+                "linear_chunk_rows": ([128, 256, 512, 1024, 2048], {"default": 512}),
+            }
+            "required": {
+                "model": ("MODEL",),
                 "clip_name": (names,),
                 "linear_chunk_rows": ([128, 256, 512, 1024, 2048], {"default": 512}),
             }
@@ -817,7 +853,14 @@ class MyCLIPGGUFLoader:
             raise ValueError("MyCLIPGGUF 只接受 .gguf 文件：%s" % path)
         return path
 
-    def load_clip(self, clip_name, linear_chunk_rows=512):
+    def load_clip(self, model, clip_name, linear_chunk_rows=512):
+        _LOG.info("MyCLIPGGUF: 开始预加载 DiT 到 GPU。")
+        _memory_info("before DiT preload")
+
+        comfy.model_management.load_models_gpu([model])
+
+        _memory_info("after DiT preload")
+        _LOG.info("MyCLIPGGUF: DiT GPU 预加载完成。")
         total_start = time.perf_counter()
         vendor = _load_vendor_modules()
         clip_path = self._resolve_clip_path(clip_name)
