@@ -1,4 +1,3 @@
-
 # my_unet_gguf_loader.py
 #
 # Based on leejet/ComfyUI-GGUF (Apache-2.0).
@@ -10,6 +9,7 @@
 # - Linear residual / residual_scale support
 # - Optional GPU Q8_0 row-chunk dequantization
 # - Standard ComfyUI MODEL output and ModelPatcher integration
+# - Process-level model cache with GGUF Reader retention
 #
 # Install:
 #   ComfyUI/custom_nodes/my_unet_gguf_loader.py
@@ -44,12 +44,6 @@ _LOG_PREFIX = "[MyGGUFStream]"
 # Optional persistent VRAM residency
 # ------------------------------------------------------------
 
-# ComfyUI's LoadedModel stores its ModelPatcher through a weak reference.
-# Keep the patcher alive only when the node's keep_model_loaded option is on.
-# The LoadedModel itself is retained by current_loaded_models, so this one
-# strong reference also keeps the underlying diffusion model and its weights
-# alive between prompt executions.
-
 _explicit_unload_state = threading.local()
 
 
@@ -63,6 +57,7 @@ def _is_my_gguf_patcher(patcher):
 def _install_persistent_vram_hooks():
     mm = comfy.model_management
     loaded_model_cls = getattr(mm, "LoadedModel", None)
+
     if loaded_model_cls is None:
         logging.warning(
             "%s LoadedModel class unavailable; persistent residency is disabled",
@@ -72,22 +67,20 @@ def _install_persistent_vram_hooks():
 
     # 1) Establish the strong reference only after a successful model load.
     original_model_load = loaded_model_cls.model_load
+
     if not getattr(original_model_load, "_my_gguf_keepalive_hook", False):
+
         def model_load_with_keepalive(self, *args, **kwargs):
             result = original_model_load(self, *args, **kwargs)
             patcher = self.model
+
             if _is_my_gguf_patcher(patcher):
                 if getattr(self, "_my_gguf_keepalive", None) is not patcher:
                     self._my_gguf_keepalive = patcher
-                    logging.info(
-                        "%s VRAM keepalive attached: model=%s",
-                        _LOG_PREFIX,
-                        patcher.model.__class__.__name__,
-                    )
             else:
-                # Do not retain models whose option is disabled.
                 if hasattr(self, "_my_gguf_keepalive"):
                     del self._my_gguf_keepalive
+
             return result
 
         model_load_with_keepalive._my_gguf_keepalive_hook = True
@@ -96,76 +89,105 @@ def _install_persistent_vram_hooks():
 
     # 2) Release the strong reference after a complete ComfyUI unload.
     original_model_unload = loaded_model_cls.model_unload
+
     if not getattr(original_model_unload, "_my_gguf_keepalive_hook", False):
+
         def model_unload_with_keepalive(self, *args, **kwargs):
             result = original_model_unload(self, *args, **kwargs)
+
             if result is True and hasattr(self, "_my_gguf_keepalive"):
-                patcher = self._my_gguf_keepalive
                 del self._my_gguf_keepalive
-                logging.info(
-                    "%s VRAM keepalive released: model=%s",
-                    _LOG_PREFIX,
-                    getattr(getattr(patcher, "model", None), "__class__", type(None)).__name__,
-                )
+
             return result
 
         model_unload_with_keepalive._my_gguf_keepalive_hook = True
         model_unload_with_keepalive._my_gguf_original = original_model_unload
         loaded_model_cls.model_unload = model_unload_with_keepalive
 
-    # 3) Normal memory pressure must not evict a keepalive model. Explicit
-    #    user-requested unload operations temporarily bypass this protection.
+    # 3) Normal memory pressure must not evict a keepalive model.
+    #    Explicit user-requested unload operations temporarily bypass this.
     original_free_memory = mm.free_memory
+
     if not getattr(original_free_memory, "_my_gguf_keepalive_hook", False):
         signature = inspect.signature(original_free_memory)
 
         def free_memory_with_keepalive(*args, **kwargs):
             bound = signature.bind(*args, **kwargs)
             bound.apply_defaults()
-            keep_loaded = list(bound.arguments.get("keep_loaded") or ())
+
+            keep_loaded = list(
+                bound.arguments.get("keep_loaded") or ()
+            )
 
             if not getattr(_explicit_unload_state, "active", False):
                 for loaded_model in tuple(mm.current_loaded_models):
                     try:
                         patcher = loaded_model.model
+
                         if not _is_my_gguf_patcher(patcher):
                             continue
+
                         if loaded_model.is_dead():
                             continue
 
-                        # Fallback attachment also covers a LoadedModel that
-                        # predates this hook or was loaded through a custom path.
-                        if getattr(loaded_model, "_my_gguf_keepalive", None) is not patcher:
-                            loaded_model._my_gguf_keepalive = patcher
-                            logging.info(
-                                "%s VRAM keepalive attached: model=%s",
-                                _LOG_PREFIX,
-                                patcher.model.__class__.__name__,
+                        if (
+                            getattr(
+                                loaded_model,
+                                "_my_gguf_keepalive",
+                                None,
                             )
-                        if not any(item is loaded_model for item in keep_loaded):
+                            is not patcher
+                        ):
+                            loaded_model._my_gguf_keepalive = patcher
+
+                        if not any(
+                            item is loaded_model
+                            for item in keep_loaded
+                        ):
                             keep_loaded.append(loaded_model)
+
                     except Exception:
-                        # A stale weak reference must never break ComfyUI cleanup.
                         continue
 
             bound.arguments["keep_loaded"] = keep_loaded
-            return original_free_memory(*bound.args, **bound.kwargs)
+
+            return original_free_memory(
+                *bound.args,
+                **bound.kwargs,
+            )
 
         free_memory_with_keepalive._my_gguf_keepalive_hook = True
         free_memory_with_keepalive._my_gguf_original = original_free_memory
         mm.free_memory = free_memory_with_keepalive
 
-    # 4) unload_all_models() and unload_model_and_clones() are explicit unload
-    #    APIs. Let them unload keepalive models and release the strong reference.
-    for function_name in ("unload_all_models", "unload_model_and_clones"):
+    # 4) Explicit unload APIs are allowed to unload keepalive models.
+    for function_name in (
+        "unload_all_models",
+        "unload_model_and_clones",
+    ):
         original = getattr(mm, function_name, None)
-        if original is None or getattr(original, "_my_gguf_explicit_unload_hook", False):
+
+        if (
+            original is None
+            or getattr(
+                original,
+                "_my_gguf_explicit_unload_hook",
+                False,
+            )
+        ):
             continue
 
         def make_explicit_unload_wrapper(func, name):
+
             def explicit_unload_wrapper(*args, **kwargs):
-                previous = getattr(_explicit_unload_state, "active", False)
+                previous = getattr(
+                    _explicit_unload_state,
+                    "active",
+                    False,
+                )
+
                 _explicit_unload_state.active = True
+
                 try:
                     return func(*args, **kwargs)
                 finally:
@@ -173,12 +195,22 @@ def _install_persistent_vram_hooks():
 
             explicit_unload_wrapper._my_gguf_explicit_unload_hook = True
             explicit_unload_wrapper._my_gguf_original = func
-            explicit_unload_wrapper.__name__ = getattr(func, "__name__", name)
+            explicit_unload_wrapper.__name__ = getattr(
+                func,
+                "__name__",
+                name,
+            )
+
             return explicit_unload_wrapper
 
-        setattr(mm, function_name, make_explicit_unload_wrapper(original, function_name))
-
-    logging.info("%s persistent VRAM residency hooks installed", _LOG_PREFIX)
+        setattr(
+            mm,
+            function_name,
+            make_explicit_unload_wrapper(
+                original,
+                function_name,
+            ),
+        )
 
 
 _install_persistent_vram_hooks()
@@ -198,7 +230,11 @@ TORCH_COMPATIBLE_QTYPES = (
 def is_torch_compatible(tensor):
     return (
         tensor is None
-        or getattr(tensor, "tensor_type", None) in TORCH_COMPATIBLE_QTYPES
+        or getattr(
+            tensor,
+            "tensor_type",
+            None,
+        ) in TORCH_COMPATIBLE_QTYPES
     )
 
 
@@ -207,6 +243,7 @@ def is_quantized(tensor):
 
 
 class GGMLTensor(torch.Tensor):
+
     def __new__(
         cls,
         *args,
@@ -215,7 +252,11 @@ class GGMLTensor(torch.Tensor):
         patches=None,
         **kwargs
     ):
-        return super().__new__(cls, *args, **kwargs)
+        return super().__new__(
+            cls,
+            *args,
+            **kwargs
+        )
 
     def __init__(
         self,
@@ -226,17 +267,35 @@ class GGMLTensor(torch.Tensor):
         **kwargs
     ):
         super().__init__()
+
         self.tensor_type = tensor_type
         self.tensor_shape = torch.Size(tensor_shape)
         self.patches = [] if patches is None else patches
 
     def to(self, *args, **kwargs):
         new = super().to(*args, **kwargs)
-        new.tensor_type = getattr(self, "tensor_type", None)
-        new.tensor_shape = getattr(self, "tensor_shape", new.data.shape)
-        new.patches = getattr(self, "patches", []).copy()
+
+        new.tensor_type = getattr(
+            self,
+            "tensor_type",
+            None,
+        )
+
+        new.tensor_shape = getattr(
+            self,
+            "tensor_shape",
+            new.data.shape,
+        )
+
+        new.patches = getattr(
+            self,
+            "patches",
+            [],
+        ).copy()
+
         if hasattr(self, "is_largest_weight"):
             new.is_largest_weight = self.is_largest_weight
+
         return new
 
     def clone(self, *args, **kwargs):
@@ -249,21 +308,39 @@ class GGMLTensor(torch.Tensor):
         try:
             return super().copy_(*args, **kwargs)
         except Exception as e:
-            logging.warning("%s ignoring copy_: %s", _LOG_PREFIX, e)
+            logging.warning(
+                "%s ignoring copy_: %s",
+                _LOG_PREFIX,
+                e,
+            )
 
     def new_empty(self, size, *args, **kwargs):
-        new_tensor = super().new_empty(size, *args, **kwargs)
+        new_tensor = super().new_empty(
+            size,
+            *args,
+            **kwargs,
+        )
+
         return GGMLTensor(
             new_tensor,
-            tensor_type=getattr(self, "tensor_type", None),
+            tensor_type=getattr(
+                self,
+                "tensor_type",
+                None,
+            ),
             tensor_shape=size,
-            patches=getattr(self, "patches", []).copy(),
+            patches=getattr(
+                self,
+                "patches",
+                [],
+            ).copy(),
         )
 
     @property
     def shape(self):
         if not hasattr(self, "tensor_shape"):
             self.tensor_shape = self.size()
+
         return self.tensor_shape
 
 
@@ -294,17 +371,35 @@ def _q8_0_dequantize_raw(raw, output_shape, dtype):
         scales = scales.to(dtype)
 
     result = scales * values
+
     return result.reshape(output_shape)
 
 
-def dequantize_tensor(tensor, dtype=None, dequant_dtype=None):
-    qtype = getattr(tensor, "tensor_type", None)
-    output_shape = getattr(tensor, "tensor_shape", tensor.shape)
+def dequantize_tensor(
+    tensor,
+    dtype=None,
+    dequant_dtype=None,
+):
+    qtype = getattr(
+        tensor,
+        "tensor_type",
+        None,
+    )
+
+    output_shape = getattr(
+        tensor,
+        "tensor_shape",
+        tensor.shape,
+    )
 
     if qtype in TORCH_COMPATIBLE_QTYPES:
         return tensor.to(dtype)
 
-    target_dtype = dtype if dequant_dtype == "target" else dequant_dtype
+    target_dtype = (
+        dtype
+        if dequant_dtype == "target"
+        else dequant_dtype
+    )
 
     if qtype == gguf.GGMLQuantizationType.Q8_0:
         result = _q8_0_dequantize_raw(
@@ -312,22 +407,36 @@ def dequantize_tensor(tensor, dtype=None, dequant_dtype=None):
             output_shape,
             target_dtype,
         )
-        return result.to(dtype) if dtype is not None else result
+
+        return (
+            result.to(dtype)
+            if dtype is not None
+            else result
+        )
 
     # Compatibility fallback for other GGUF quantization types.
-    # Q8_0, the target type for GPU chunking, does not use this path.
     logging.warning(
         "%s qtype %s uses GGUF CPU dequant fallback",
         _LOG_PREFIX,
-        getattr(qtype, "name", repr(qtype)),
+        getattr(
+            qtype,
+            "name",
+            repr(qtype),
+        ),
     )
 
     cpu_array = tensor.detach().cpu().numpy()
-    result = gguf.quants.dequantize(cpu_array, qtype)
+
+    result = gguf.quants.dequantize(
+        cpu_array,
+        qtype,
+    )
+
     result = torch.from_numpy(result).to(tensor.device)
 
     if target_dtype is not None:
         result = result.to(target_dtype)
+
     if dtype is not None:
         result = result.to(dtype)
 
@@ -368,11 +477,15 @@ TXT_ARCH_LIST = {
     "gemma3",
 }
 
-VIS_TYPE_LIST = {"clip-vision", "mmproj"}
+VIS_TYPE_LIST = {
+    "clip-vision",
+    "mmproj",
+}
 
 
 def get_orig_shape(reader, tensor_name):
     field_key = f"comfy.gguf.orig_shape.{tensor_name}"
+
     field = reader.get_field(field_key)
 
     if field is None:
@@ -388,7 +501,10 @@ def get_orig_shape(reader, tensor_name):
         )
 
     return torch.Size(
-        tuple(int(field.parts[i][0]) for i in field.data)
+        tuple(
+            int(field.parts[i][0])
+            for i in field.data
+        )
     )
 
 
@@ -406,12 +522,20 @@ def get_field(reader, field_name, field_type):
             raise TypeError(
                 f"Bad type for GGUF {field_name}: {field.types!r}"
             )
-        return str(field.parts[field.data[-1]], encoding="utf-8")
+
+        return str(
+            field.parts[field.data[-1]],
+            encoding="utf-8",
+        )
 
     if field_type in (int, float, bool):
-        return field_type(field.parts[field.data[-1]].item())
+        return field_type(
+            field.parts[field.data[-1]].item()
+        )
 
-    raise TypeError(f"Unknown field type {field_type}")
+    raise TypeError(
+        f"Unknown field type {field_type}"
+    )
 
 
 def get_gguf_metadata(reader):
@@ -431,14 +555,17 @@ def get_gguf_metadata(reader):
                     field.parts[field.data[-1]],
                     "utf-8",
                 )
+
             elif field_type == gguf.GGUFValueType.INT32:
                 metadata[field_name] = int(
                     field.parts[field.data[-1]]
                 )
+
             elif field_type == gguf.GGUFValueType.F32:
                 metadata[field_name] = float(
                     field.parts[field.data[-1]]
                 )
+
             elif field_type == gguf.GGUFValueType.BOOL:
                 metadata[field_name] = bool(
                     field.parts[field.data[-1]]
@@ -450,16 +577,23 @@ def get_gguf_metadata(reader):
     return metadata
 
 
-def gguf_sd_loader(path, handle_prefix="model.diffusion_model."):
-    logging.info("%s reading GGUF: %s", _LOG_PREFIX, path)
-
+def gguf_sd_loader(
+    path,
+    handle_prefix="model.diffusion_model.",
+    return_reader=False,
+):
     reader = gguf.GGUFReader(path)
 
     has_prefix = False
 
     if handle_prefix is not None:
         prefix_len = len(handle_prefix)
-        tensor_names = {tensor.name for tensor in reader.tensors}
+
+        tensor_names = {
+            tensor.name
+            for tensor in reader.tensors
+        }
+
         has_prefix = any(
             name.startswith(handle_prefix)
             for name in tensor_names
@@ -474,9 +608,12 @@ def gguf_sd_loader(path, handle_prefix="model.diffusion_model."):
         if has_prefix:
             if not tensor_name.startswith(handle_prefix):
                 continue
+
             sd_key = tensor_name[prefix_len:]
 
-        tensors.append((sd_key, tensor))
+        tensors.append(
+            (sd_key, tensor)
+        )
 
     arch_str = get_field(
         reader,
@@ -503,7 +640,6 @@ def gguf_sd_loader(path, handle_prefix="model.diffusion_model."):
         )
 
     state_dict = {}
-    qtype_counts = {}
 
     for sd_key, tensor in tensors:
         with warnings.catch_warnings():
@@ -511,13 +647,20 @@ def gguf_sd_loader(path, handle_prefix="model.diffusion_model."):
                 "ignore",
                 message="The given NumPy array is not writable",
             )
+
             torch_tensor = torch.from_numpy(tensor.data)
 
-        shape = get_orig_shape(reader, tensor.name)
+        shape = get_orig_shape(
+            reader,
+            tensor.name,
+        )
 
         if shape is None:
             shape = torch.Size(
-                tuple(int(v) for v in reversed(tensor.shape))
+                tuple(
+                    int(v)
+                    for v in reversed(tensor.shape)
+                )
             )
 
         if tensor.tensor_type in (
@@ -541,24 +684,6 @@ def gguf_sd_loader(path, handle_prefix="model.diffusion_model."):
                 dtype=torch.float32,
             )
 
-        type_name = getattr(
-            tensor.tensor_type,
-            "name",
-            repr(tensor.tensor_type),
-        )
-        qtype_counts[type_name] = (
-            qtype_counts.get(type_name, 0) + 1
-        )
-
-    logging.info(
-        "%s GGUF qtypes: %s",
-        _LOG_PREFIX,
-        ", ".join(
-            f"{key} ({value})"
-            for key, value in qtype_counts.items()
-        ),
-    )
-
     quantized = {
         key: value
         for key, value in state_dict.items()
@@ -570,12 +695,16 @@ def gguf_sd_loader(path, handle_prefix="model.diffusion_model."):
             quantized,
             key=lambda key: quantized[key].numel(),
         )
+
         state_dict[largest_key].is_largest_weight = True
 
     extra = {
         "arch_str": arch_str,
         "metadata": get_gguf_metadata(reader),
     }
+
+    if return_reader:
+        return state_dict, extra, reader
 
     return state_dict, extra
 
@@ -586,7 +715,10 @@ def gguf_sd_loader(path, handle_prefix="model.diffusion_model."):
 
 def move_patch_to_device(item, device):
     if isinstance(item, torch.Tensor):
-        return item.to(device, non_blocking=True)
+        return item.to(
+            device,
+            non_blocking=True,
+        )
 
     if isinstance(item, tuple):
         return tuple(
@@ -609,24 +741,36 @@ def chained_hasattr(obj, chained_attr):
     for attr in chained_attr.split("."):
         if not hasattr(probe, attr):
             return False
-        probe = getattr(probe, attr)
+
+        probe = getattr(
+            probe,
+            attr,
+        )
 
     return True
 
 
 def get_torch_compiler_disable_decorator():
+
     def dummy_decorator(*args, **kwargs):
+
         def noop(fn):
             return fn
+
         return noop
 
     try:
         from packaging import version
 
-        if not chained_hasattr(torch, "compiler.disable"):
+        if not chained_hasattr(
+            torch,
+            "compiler.disable",
+        ):
             return dummy_decorator
 
-        if version.parse(torch.__version__) >= version.parse("2.8"):
+        if version.parse(
+            torch.__version__
+        ) >= version.parse("2.8"):
             return dummy_decorator
 
         if chained_hasattr(
@@ -677,7 +821,11 @@ def apply_input_activation(
                 "SwiGLU input dimension must be divisible by 2"
             )
 
-        gate, value = input_tensor.chunk(2, dim=-1)
+        gate, value = input_tensor.chunk(
+            2,
+            dim=-1,
+        )
+
         return F.silu(gate) * value
 
     raise NotImplementedError(
@@ -731,14 +879,20 @@ def get_q8_0_raw_rows(weight):
         None
     """
     try:
-        if getattr(weight, "tensor_type", None) != (
-            gguf.GGMLQuantizationType.Q8_0
-        ):
+        if getattr(
+            weight,
+            "tensor_type",
+            None,
+        ) != gguf.GGMLQuantizationType.Q8_0:
             return None
 
         logical_shape = tuple(
             int(v)
-            for v in getattr(weight, "tensor_shape", weight.shape)
+            for v in getattr(
+                weight,
+                "tensor_shape",
+                weight.shape,
+            )
         )
 
         if len(logical_shape) != 2:
@@ -757,11 +911,15 @@ def get_q8_0_raw_rows(weight):
         if not raw.is_contiguous():
             return None
 
-        row_bytes = (in_features // 32) * 34
+        row_bytes = (
+            in_features // 32
+        ) * 34
 
         raw_u8 = raw.view(torch.uint8)
 
-        expected_bytes = out_features * row_bytes
+        expected_bytes = (
+            out_features * row_bytes
+        )
 
         if raw_u8.numel() != expected_bytes:
             logging.warning(
@@ -778,7 +936,11 @@ def get_q8_0_raw_rows(weight):
             row_bytes,
         )
 
-        return raw_rows, in_features, out_features
+        return (
+            raw_rows,
+            in_features,
+            out_features,
+        )
 
     except Exception as e:
         logging.warning(
@@ -830,7 +992,12 @@ class GGMLLayer(torch.nn.Module):
     patch_dtype = None
     gpu_dequant_chunk_rows = 0
 
-    def is_ggml_quantized(self, *, weight=None, bias=None):
+    def is_ggml_quantized(
+        self,
+        *,
+        weight=None,
+        bias=None,
+    ):
         if weight is None:
             weight = self.weight
 
@@ -849,15 +1016,23 @@ class GGMLLayer(torch.nn.Module):
         *args,
         **kwargs,
     ):
-        weight = state_dict.get(f"{prefix}weight")
-        bias = state_dict.get(f"{prefix}bias")
+        weight = state_dict.get(
+            f"{prefix}weight"
+        )
+
+        bias = state_dict.get(
+            f"{prefix}bias"
+        )
 
         if (
             self.is_ggml_quantized(
                 weight=weight,
                 bias=bias,
             )
-            or isinstance(self, torch.nn.Linear)
+            or isinstance(
+                self,
+                torch.nn.Linear,
+            )
         ):
             return self.ggml_load_from_state_dict(
                 state_dict,
@@ -867,7 +1042,10 @@ class GGMLLayer(torch.nn.Module):
             )
 
         if (
-            isinstance(self, torch.nn.Embedding)
+            isinstance(
+                self,
+                torch.nn.Embedding,
+            )
             and self.weight.shape[0] >= 64 * 1024
         ):
             return self.ggml_load_from_state_dict(
@@ -917,21 +1095,36 @@ class GGMLLayer(torch.nn.Module):
                     unexpected_keys.append(key)
 
         if (
-            getattr(self, "weight", None) is None
-            and isinstance(self, torch.nn.Linear)
+            getattr(
+                self,
+                "weight",
+                None,
+            ) is None
+            and isinstance(
+                self,
+                torch.nn.Linear,
+            )
         ):
             value = torch.zeros(
                 self.in_features,
                 self.out_features,
             )
+
             self.weight = torch.nn.Parameter(
                 value,
                 requires_grad=False,
             )
-            missing_keys.append(prefix + "weight")
+
+            missing_keys.append(
+                prefix + "weight"
+            )
 
         if getattr(
-            getattr(self, "weight", None),
+            getattr(
+                self,
+                "weight",
+                None,
+            ),
             "is_largest_weight",
             False,
         ):
@@ -943,9 +1136,15 @@ class GGMLLayer(torch.nn.Module):
         **kwargs,
     ):
         if self.is_ggml_quantized():
-            return self.ggml_save_to_state_dict(*args, **kwargs)
+            return self.ggml_save_to_state_dict(
+                *args,
+                **kwargs,
+            )
 
-        return super()._save_to_state_dict(*args, **kwargs)
+        return super()._save_to_state_dict(
+            *args,
+            **kwargs,
+        )
 
     def ggml_save_to_state_dict(
         self,
@@ -957,6 +1156,7 @@ class GGMLLayer(torch.nn.Module):
             self.weight,
             device=torch.device("meta"),
         )
+
         destination[prefix + "weight"] = weight
 
         if self.bias is not None:
@@ -964,9 +1164,14 @@ class GGMLLayer(torch.nn.Module):
                 self.bias,
                 device=torch.device("meta"),
             )
+
             destination[prefix + "bias"] = bias
 
-        if getattr(self, "largest_layer", False):
+        if getattr(
+            self,
+            "largest_layer",
+            False,
+        ):
             shape = getattr(
                 self.weight,
                 "tensor_shape",
@@ -990,7 +1195,11 @@ class GGMLLayer(torch.nn.Module):
 
         return
 
-    def get_weight(self, tensor, dtype):
+    def get_weight(
+        self,
+        tensor,
+        dtype,
+    ):
         if tensor is None:
             return None
 
@@ -998,11 +1207,16 @@ class GGMLLayer(torch.nn.Module):
         device = tensor.device
         patch_key = None
 
-        for patches, key in getattr(tensor, "patches", []):
+        for patches, key in getattr(
+            tensor,
+            "patches",
+            [],
+        ):
             patch_list += move_patch_to_device(
                 patches,
                 device,
             )
+
             patch_key = key
 
         weight = dequantize_tensor(
@@ -1011,7 +1225,10 @@ class GGMLLayer(torch.nn.Module):
             self.dequant_dtype,
         )
 
-        if isinstance(weight, GGMLTensor):
+        if isinstance(
+            weight,
+            GGMLTensor,
+        ):
             weight = torch.Tensor(weight)
 
         if patch_list:
@@ -1021,6 +1238,7 @@ class GGMLLayer(torch.nn.Module):
                     weight,
                     patch_key,
                 )
+
             else:
                 patch_dtype = (
                     dtype
@@ -1108,6 +1326,7 @@ class GGMLLayer(torch.nn.Module):
                 *args,
                 **kwargs,
             )
+
         else:
             output = super().forward_comfy_cast_weights(
                 input,
@@ -1115,7 +1334,10 @@ class GGMLLayer(torch.nn.Module):
                 **kwargs,
             )
 
-        if isinstance(output, GGMLTensor):
+        if isinstance(
+            output,
+            GGMLTensor,
+        ):
             output = torch.Tensor(output)
 
         return output
@@ -1127,8 +1349,6 @@ class GGMLLayer(torch.nn.Module):
         **kwargs,
     ):
         raise NotImplementedError
-
-
 # ------------------------------------------------------------
 # ComfyUI operations
 # ------------------------------------------------------------
@@ -1156,7 +1376,6 @@ class GGMLOps(comfy.ops.manual_cast):
             self.weight = None
             self.bias = None
 
-            self._chunk_log_done = False
             self._chunk_fallback_logged = False
 
         def _full_linear(
@@ -1211,7 +1430,10 @@ class GGMLOps(comfy.ops.manual_cast):
 
             weight_parameter = self.weight
 
-            if not isinstance(weight_parameter, GGMLTensor):
+            if not isinstance(
+                weight_parameter,
+                GGMLTensor,
+            ):
                 return None
 
             if getattr(
@@ -1222,17 +1444,22 @@ class GGMLOps(comfy.ops.manual_cast):
                 return None
 
             # LoRA patches require the full patched weight path.
-            if getattr(weight_parameter, "patches", []):
+            if getattr(
+                weight_parameter,
+                "patches",
+                [],
+            ):
                 if not self._chunk_fallback_logged:
                     logging.warning(
                         "%s Linear has LoRA patches; "
                         "using full dequantization for this layer",
                         _LOG_PREFIX,
                     )
+
                     self._chunk_fallback_logged = True
+
                 return None
 
-            # Apply Qwen fused activation before the matrix multiply.
             input = apply_input_activation(
                 input,
                 input_act,
@@ -1251,7 +1478,9 @@ class GGMLOps(comfy.ops.manual_cast):
 
             moved_weight = weight_parameter.to(device)
 
-            validated = get_q8_0_raw_rows(moved_weight)
+            validated = get_q8_0_raw_rows(
+                moved_weight
+            )
 
             if validated is None:
                 if not self._chunk_fallback_logged:
@@ -1260,7 +1489,9 @@ class GGMLOps(comfy.ops.manual_cast):
                         "row chunking; using full dequantization",
                         _LOG_PREFIX,
                     )
+
                     self._chunk_fallback_logged = True
+
                 return None
 
             raw_rows, in_features, out_features = validated
@@ -1275,10 +1506,11 @@ class GGMLOps(comfy.ops.manual_cast):
                         "using full dequantization",
                         _LOG_PREFIX,
                     )
+
                     self._chunk_fallback_logged = True
+
                 return None
 
-            # Bias is normally unquantized 1D data.
             bias = None
 
             if self.bias is not None:
@@ -1291,7 +1523,11 @@ class GGMLOps(comfy.ops.manual_cast):
                     bias,
                     dtype,
                     device,
-                    non_blocking=comfy.model_management.device_supports_non_blocking(device),
+                    non_blocking=(
+                        comfy.model_management.device_supports_non_blocking(
+                            device
+                        )
+                    ),
                     copy=False,
                 )
 
@@ -1301,25 +1537,6 @@ class GGMLOps(comfy.ops.manual_cast):
             )
 
             output = input.new_empty(output_shape)
-
-            chunk_count = (
-                out_features + chunk_rows - 1
-            ) // chunk_rows
-
-            if not self._chunk_log_done:
-                logging.info(
-                    "%s GPU Q8_0 chunk Linear: "
-                    "in=%d out=%d chunk_rows=%d chunks=%d "
-                    "dtype=%s device=%s",
-                    _LOG_PREFIX,
-                    in_features,
-                    out_features,
-                    chunk_rows,
-                    chunk_count,
-                    dtype,
-                    device,
-                )
-                self._chunk_log_done = True
 
             for start in range(
                 0,
@@ -1407,6 +1624,7 @@ class GGMLOps(comfy.ops.manual_cast):
             **kwargs,
         ):
             weight, bias = self.cast_bias_weight(input)
+
             return self._conv_forward(
                 input,
                 weight,
@@ -1501,7 +1719,10 @@ def update_folder_names_and_paths(
 
     base_paths = (
         base[0]
-        if isinstance(base[0], (list, set, tuple))
+        if isinstance(
+            base[0],
+            (list, set, tuple),
+        )
         else []
     )
 
@@ -1595,6 +1816,7 @@ class GGUFModelPatcher(
                         copy=True,
                     )
                 )
+
             else:
                 temp_weight = weight.to(
                     torch.float32,
@@ -1618,6 +1840,7 @@ class GGUFModelPatcher(
                 key,
                 out_weight,
             )
+
         else:
             comfy.utils.set_attr_param(
                 self.model,
@@ -1699,7 +1922,9 @@ class GGUFModelPatcher(
                         )
 
                         if device == self.offload_device:
-                            linked.append((name, module))
+                            linked.append(
+                                (name, module)
+                            )
                             continue
 
                     if hasattr(module, "bias"):
@@ -1710,19 +1935,15 @@ class GGUFModelPatcher(
                         )
 
                         if device == self.offload_device:
-                            linked.append((name, module))
+                            linked.append(
+                                (name, module)
+                            )
                             continue
 
             if (
                 linked
                 and self.load_device != self.offload_device
             ):
-                logging.info(
-                    "%s attempting to release mmap: %d modules",
-                    _LOG_PREFIX,
-                    len(linked),
-                )
-
                 for name, module in linked:
                     module.to(self.load_device).to(
                         self.offload_device
@@ -1733,21 +1954,272 @@ class GGUFModelPatcher(
 
     def clone(self, *args, **kwargs):
         source_class = self.__class__
+
         self.__class__ = GGUFModelPatcher
+
         try:
-            new = super().clone(*args, **kwargs)
+            new = super().clone(
+                *args,
+                **kwargs,
+            )
+
         finally:
             self.__class__ = source_class
 
         new.__class__ = GGUFModelPatcher
-        new.patch_on_device = getattr(self, "patch_on_device", False)
-        new.mmap_released = getattr(self, "mmap_released", False)
-        new._my_gguf_keep_loaded = getattr(self, "_my_gguf_keep_loaded", False)
+
+        new.patch_on_device = getattr(
+            self,
+            "patch_on_device",
+            False,
+        )
+
+        new.mmap_released = getattr(
+            self,
+            "mmap_released",
+            False,
+        )
+
+        new._my_gguf_keep_loaded = getattr(
+            self,
+            "_my_gguf_keep_loaded",
+            False,
+        )
 
         if source_class != GGUFModelPatcher:
             new.size = 0
 
         return new
+
+
+# ------------------------------------------------------------
+# Process-level model cache
+# ------------------------------------------------------------
+
+_MODEL_CACHE_LOCK = threading.RLock()
+
+# Single-entry cache:
+# Keep the most recently loaded model and its GGUF Reader alive.
+_MODEL_CACHE = None
+
+
+def _resolve_dtype_option(value):
+    if value in ("default", None):
+        return None
+
+    if value == "target":
+        return "target"
+
+    dtype = getattr(
+        torch,
+        value,
+        None,
+    )
+
+    if dtype is None:
+        raise ValueError(
+            f"Unsupported dtype option: {value!r}"
+        )
+
+    return dtype
+
+
+def _dtype_cache_key(value):
+    if value is None:
+        return "default"
+
+    if value == "target":
+        return "target"
+
+    return str(value)
+
+
+def _make_model_cache_key(
+    unet_path,
+    chunk_rows,
+    dequant_dtype,
+    patch_dtype,
+    patch_on_device,
+):
+    real_path = os.path.normcase(
+        os.path.realpath(
+            os.path.abspath(unet_path)
+        )
+    )
+
+    stat = os.stat(real_path)
+
+    file_size = stat.st_size
+
+    mtime_ns = getattr(
+        stat,
+        "st_mtime_ns",
+        int(stat.st_mtime * 1_000_000_000),
+    )
+
+    return (
+        real_path,
+        file_size,
+        mtime_ns,
+        int(chunk_rows),
+        _dtype_cache_key(dequant_dtype),
+        _dtype_cache_key(patch_dtype),
+        bool(patch_on_device),
+    )
+
+
+def _configure_linear_instances(
+    model_patcher,
+    dequant_dtype,
+    patch_dtype,
+    chunk_rows,
+):
+    diffusion_model = model_patcher.model
+
+    for module in diffusion_model.modules():
+        if isinstance(
+            module,
+            GGMLOps.Linear,
+        ):
+            # Instance-level values prevent one cached model's
+            # settings from being overwritten by another model.
+            module.dequant_dtype = dequant_dtype
+            module.patch_dtype = patch_dtype
+            module.gpu_dequant_chunk_rows = int(chunk_rows)
+
+
+def _build_cached_model(
+    unet_path,
+    chunk_rows,
+    dequant_dtype,
+    patch_dtype,
+    patch_on_device,
+):
+    global _MODEL_CACHE
+
+    ops = GGMLOps()
+
+    # These values are used during model construction.
+    # They are also copied onto each Linear instance afterwards.
+    ops.Linear.dequant_dtype = dequant_dtype
+    ops.Linear.patch_dtype = patch_dtype
+    ops.Linear.gpu_dequant_chunk_rows = int(chunk_rows)
+
+    state_dict, extra, reader = gguf_sd_loader(
+        unet_path,
+        return_reader=True,
+    )
+
+    kwargs = {}
+
+    valid_params = inspect.signature(
+        comfy.sd.load_diffusion_model_state_dict
+    ).parameters
+
+    if "metadata" in valid_params:
+        kwargs["metadata"] = extra.get(
+            "metadata",
+            {},
+        )
+
+    model = comfy.sd.load_diffusion_model_state_dict(
+        state_dict,
+        model_options={
+            "custom_operations": ops,
+        },
+        **kwargs,
+    )
+
+    if model is None:
+        raise RuntimeError(
+            f"ComfyUI could not identify this GGUF model: {unet_path}"
+        )
+
+    model = GGUFModelPatcher.clone(model)
+
+    _configure_linear_instances(
+        model,
+        dequant_dtype,
+        patch_dtype,
+        chunk_rows,
+    )
+
+    model.patch_on_device = bool(patch_on_device)
+    model._my_gguf_keep_loaded = False
+
+    # Keep both the patcher and reader alive.
+    # The reader retains the GGUF mmap-backed tensor storage.
+    _MODEL_CACHE = {
+        "model": model,
+        "reader": reader,
+    }
+
+    logging.info(
+        "%s model cached: arch=%s",
+        _LOG_PREFIX,
+        extra.get("arch_str"),
+    )
+
+    return model
+
+
+def _get_cached_model(
+    unet_path,
+    chunk_rows,
+    dequant_dtype,
+    patch_dtype,
+    patch_on_device,
+):
+    global _MODEL_CACHE
+
+    cache_key = _make_model_cache_key(
+        unet_path,
+        chunk_rows,
+        dequant_dtype,
+        patch_dtype,
+        patch_on_device,
+    )
+
+    # Keep lookup and model construction under one lock.
+    # This prevents two concurrent prompts from loading the same GGUF.
+    with _MODEL_CACHE_LOCK:
+        if (
+            _MODEL_CACHE is not None
+            and _MODEL_CACHE.get("key") == cache_key
+        ):
+            logging.info(
+                "%s cache HIT: %s",
+                _LOG_PREFIX,
+                os.path.basename(unet_path),
+            )
+
+            base_model = _MODEL_CACHE["model"]
+
+        else:
+            logging.info(
+                "%s cache MISS: %s",
+                _LOG_PREFIX,
+                os.path.basename(unet_path),
+            )
+
+            base_model = _build_cached_model(
+                unet_path,
+                chunk_rows,
+                dequant_dtype,
+                patch_dtype,
+                patch_on_device,
+            )
+
+            _MODEL_CACHE["key"] = cache_key
+
+        # Return an independent ModelPatcher clone.
+        # ComfyUI can manage patches and load state on this clone
+        # without replacing the cached base patcher.
+        model = base_model.clone()
+
+        model.patch_on_device = bool(patch_on_device)
+
+        return model
 
 
 # ------------------------------------------------------------
@@ -1836,13 +2308,6 @@ class MyUNetLoaderGGUFStream:
         patch_on_device=False,
         keep_model_loaded=False,
     ):
-        logging.info(
-            "%s loading model: %s",
-            _LOG_PREFIX,
-            unet_name,
-        )
-
-        # Parse chunk dropdown.
         if gpu_dequant_chunk_rows == "关闭":
             chunk_rows = 0
         else:
@@ -1850,35 +2315,12 @@ class MyUNetLoaderGGUFStream:
                 gpu_dequant_chunk_rows
             )
 
-        ops = GGMLOps()
+        dequant_dtype_value = _resolve_dtype_option(
+            dequant_dtype
+        )
 
-        # These are class attributes inherited by Linear instances.
-        if dequant_dtype in ("default", None):
-            ops.Linear.dequant_dtype = None
-        elif dequant_dtype == "target":
-            ops.Linear.dequant_dtype = "target"
-        else:
-            ops.Linear.dequant_dtype = getattr(
-                torch,
-                dequant_dtype,
-            )
-
-        if patch_dtype in ("default", None):
-            ops.Linear.patch_dtype = None
-        elif patch_dtype == "target":
-            ops.Linear.patch_dtype = "target"
-        else:
-            ops.Linear.patch_dtype = getattr(
-                torch,
-                patch_dtype,
-            )
-
-        ops.Linear.gpu_dequant_chunk_rows = chunk_rows
-
-        logging.info(
-            "%s GPU Q8_0 chunk rows: %s",
-            _LOG_PREFIX,
-            "OFF" if chunk_rows == 0 else chunk_rows,
+        patch_dtype_value = _resolve_dtype_option(
+            patch_dtype
         )
 
         unet_path = folder_paths.get_full_path(
@@ -1886,49 +2328,26 @@ class MyUNetLoaderGGUFStream:
             unet_name,
         )
 
-        if unet_path is None or not os.path.isfile(unet_path):
+        if (
+            unet_path is None
+            or not os.path.isfile(unet_path)
+        ):
             raise FileNotFoundError(
                 f"GGUF model not found: {unet_name}"
             )
 
-        state_dict, extra = gguf_sd_loader(
-            unet_path
+        model = _get_cached_model(
+            unet_path=unet_path,
+            chunk_rows=chunk_rows,
+            dequant_dtype=dequant_dtype_value,
+            patch_dtype=patch_dtype_value,
+            patch_on_device=patch_on_device,
         )
 
-        kwargs = {}
-
-        valid_params = inspect.signature(
-            comfy.sd.load_diffusion_model_state_dict
-        ).parameters
-
-        if "metadata" in valid_params:
-            kwargs["metadata"] = extra.get(
-                "metadata",
-                {},
-            )
-
-        model = comfy.sd.load_diffusion_model_state_dict(
-            state_dict,
-            model_options={
-                "custom_operations": ops,
-            },
-            **kwargs,
-        )
-
-        if model is None:
-            raise RuntimeError(
-                f"ComfyUI could not identify this GGUF model: {unet_path}"
-            )
-
-        model = GGUFModelPatcher.clone(model)
-
-        model.patch_on_device = patch_on_device
-        model._my_gguf_keep_loaded = bool(keep_model_loaded)
-
-        logging.info(
-            "%s model loaded: arch=%s",
-            _LOG_PREFIX,
-            extra.get("arch_str"),
+        # keep_model_loaded is a runtime residency preference.
+        # It does not change the underlying model construction.
+        model._my_gguf_keep_loaded = bool(
+            keep_model_loaded
         )
 
         return (model,)
