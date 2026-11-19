@@ -826,6 +826,7 @@ class MyCLIPGGUFLoader:
             names = folder_paths.get_filename_list("clip_gguf")
         return {
             "required": {
+                "model": ("MODEL",),
                 "clip_name": (names,),
                 "linear_chunk_rows": ([128, 256, 512, 1024, 2048], {"default": 512}),
             }
@@ -847,7 +848,14 @@ class MyCLIPGGUFLoader:
             raise ValueError("MyCLIPGGUF 只接受 .gguf 文件：%s" % path)
         return path
 
-    def load_clip(self, clip_name, linear_chunk_rows=512):
+    def load_clip(self, model, clip_name, linear_chunk_rows=512):
+        _LOG.info("MyCLIPGGUF: 开始预加载 DiT 到 GPU。")
+        _memory_info("before DiT preload")
+
+        comfy.model_management.load_models_gpu([model])
+
+        _memory_info("after DiT preload")
+        _LOG.info("MyCLIPGGUF: DiT GPU 预加载完成。")
         global _CLIP_CACHE
         total_start = time.perf_counter()
         vendor = _load_vendor_modules()
