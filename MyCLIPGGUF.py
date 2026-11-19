@@ -13,6 +13,8 @@ import sys
 import types
 import importlib
 import logging
+import gc
+import time
 
 import torch
 import torch.nn.functional as F
@@ -26,6 +28,75 @@ import comfy.model_management
 _LOG = logging.getLogger("MyCLIPGGUF")
 _VENDOR_PACKAGE_NAME = "_myclipgguf_vendor"
 _VENDOR = None
+
+
+def _memory_info(label):
+    """Log PyTorch CUDA/ROCm allocator statistics without clearing memory."""
+    try:
+        if not torch.cuda.is_available():
+            return
+        free_bytes, total_bytes = torch.cuda.mem_get_info()
+        allocated = torch.cuda.memory_allocated()
+        reserved = torch.cuda.memory_reserved()
+        _LOG.info(
+            "MyCLIPGGUF Memory [%s]: allocated=%.2f GiB, reserved=%.2f GiB, "
+            "device_free=%.2f GiB, device_total=%.2f GiB",
+            label, allocated / (1024 ** 3), reserved / (1024 ** 3),
+            free_bytes / (1024 ** 3), total_bytes / (1024 ** 3),
+        )
+    except Exception as exc:
+        _LOG.debug("MyCLIPGGUF: memory query failed at %s: %s", label, exc)
+
+
+def _stage_done(stage, started):
+    _LOG.info("MyCLIPGGUF: %s 完成，耗时 %.2f 秒", stage, time.perf_counter() - started)
+
+
+def _cleanup_after_text_encode():
+    """Collect unreachable Python objects and release unused allocator blocks."""
+    try:
+        if torch.cuda.is_available():
+            try:
+                torch.cuda.synchronize()
+            except Exception as exc:
+                _LOG.debug("MyCLIPGGUF: CUDA synchronize skipped: %s", exc)
+        _memory_info("TE cleanup before")
+        collected = gc.collect()
+        if torch.cuda.is_available():
+            try:
+                torch.cuda.empty_cache()
+            except Exception as exc:
+                _LOG.debug("MyCLIPGGUF: empty_cache skipped: %s", exc)
+        _memory_info("TE cleanup after")
+        _LOG.info("MyCLIPGGUF: TE 清理完成，GC 回收对象数=%d；不清理 Windows 文件缓存。", collected)
+    except Exception as exc:
+        _LOG.warning("MyCLIPGGUF: TE 清理失败：%s", exc)
+
+
+def _install_encode_diagnostics(clip):
+    """Wrap the public TE entry point; internal vision stages are not instrumented."""
+    model = getattr(clip, "cond_stage_model", None)
+    original = getattr(model, "encode_token_weights", None) if model is not None else None
+    if not callable(original):
+        _LOG.warning("MyCLIPGGUF: 找不到 encode_token_weights，跳过 TE 诊断包装。")
+        return
+    if getattr(original, "_myclipgguf_diagnostics", False):
+        return
+
+    def wrapped(*args, **kwargs):
+        started = time.perf_counter()
+        _LOG.info("MyCLIPGGUF: TE 编码开始。")
+        _memory_info("TE start")
+        try:
+            return original(*args, **kwargs)
+        finally:
+            _stage_done("TE 编码", started)
+            _cleanup_after_text_encode()
+
+    wrapped._myclipgguf_diagnostics = True
+    wrapped._myclipgguf_original = original
+    model.encode_token_weights = wrapped
+    _LOG.info("MyCLIPGGUF: 已安装 TE 编码进度与清理诊断。")
 
 
 # -----------------------------------------------------------------------------
@@ -144,10 +215,6 @@ def _install_gguf_rms_norm_compat():
         return value
 
     def _gguf_safe_rms_norm(x, weight, eps):
-        original_x_type = type(x)
-        original_weight_type = type(weight)
-        original_weight_qtype = getattr(weight, "tensor_type", None)
-
         # x.float() can preserve GGMLTensor's subclass. It is an activation,
         # not quantized model storage, so stripping the subclass is sufficient.
         x = _plain_tensor(x)
@@ -164,13 +231,6 @@ def _install_gguf_rms_norm_compat():
         weight = model_management.cast_to(weight, dtype=x.dtype, device=x.device)
         weight = _plain_tensor(weight)
 
-        _LOG.info(
-            "MyCLIPGGUF RMSNorm: x=%s->%s weight=%s->%s qtype=%s shape=%s dtype=%s device=%s",
-            original_x_type.__name__, type(x).__name__,
-            original_weight_type.__name__, type(weight).__name__,
-            getattr(original_weight_qtype, "name", repr(original_weight_qtype)),
-            tuple(weight.shape), weight.dtype, weight.device,
-        )
         return torch.nn.functional.rms_norm(
             x, weight.shape, weight=weight, eps=eps
         )
@@ -521,21 +581,6 @@ def _make_operations_class(chunk_rows):
                     non_blocking=True,
                 )
 
-            if not getattr(self, "_my_stream_logged", False):
-                _LOG.info(
-                    "MyCLIPGGUF Linear stream: %s x %s -> %s, chunk_rows=%d, chunks=%d, "
-                    "qtype=%s, device=%s, dtype=%s",
-                    tuple(input_shape),
-                    (self.out_features, self.in_features),
-                    (self.out_features,),
-                    chunk_rows,
-                    (self.out_features + chunk_rows - 1) // chunk_rows,
-                    getattr(getattr(weight, "tensor_type", None), "name", repr(getattr(weight, "tensor_type", None))),
-                    input_tensor.device,
-                    input_tensor.dtype,
-                )
-                self._my_stream_logged = True
-
             with torch.no_grad():
                 for row_start in range(0, self.out_features, chunk_rows):
                     row_end = min(row_start + chunk_rows, self.out_features)
@@ -627,20 +672,6 @@ def _make_operations_class(chunk_rows):
                 row_ids=unique_ids,
             )
 
-            if not getattr(self, "_my_embedding_logged", False):
-                _LOG.info(
-                    "MyCLIPGGUF Embedding gather: vocab=%d hidden=%d, unique_rows=%d/%d, "
-                    "qtype=%s, device=%s, dtype=%s",
-                    self.num_embeddings,
-                    self.embedding_dim,
-                    unique_ids.numel(),
-                    self.num_embeddings,
-                    getattr(getattr(weight, "tensor_type", None), "name", repr(getattr(weight, "tensor_type", None))),
-                    input_ids.device,
-                    target_dtype,
-                )
-                self._my_embedding_logged = True
-
             remapped = inverse.reshape(input_ids.shape).to(device=input_ids.device)
             if self.max_norm is not None:
                 mapped_padding_idx = None
@@ -682,7 +713,12 @@ def _load_qwen_image21_state_dict(clip_path):
     vendor = _load_vendor_modules()
     loader = vendor["loader"]
 
+    stage_start = time.perf_counter()
+    _LOG.info("MyCLIPGGUF: [1/4] 开始读取文本 GGUF 权重：%s", os.path.basename(clip_path))
+    _memory_info("before text GGUF")
     state_dict, extra = loader.gguf_sd_loader(clip_path, is_text_model=True)
+    _stage_done("文本 GGUF 权重读取", stage_start)
+    _memory_info("after text GGUF")
     arch = extra.get("arch_str")
     if arch != "qwen3vl":
         raise RuntimeError(
@@ -703,18 +739,27 @@ def _load_qwen_image21_state_dict(clip_path):
 
     # Match the original plugin's llama.cpp -> ComfyUI key conversion, but
     # deliberately skip its eager token_embd.weight dequantization.
+    stage_start = time.perf_counter()
     state_dict = loader.sd_map_replace(state_dict, loader.LLAMA_SD_MAP)
+    _stage_done("文本权重 key 映射", stage_start)
 
     # Wrap the text GGUF tensors BEFORE loading/merging mmproj. The mmproj
     # loader performs view/reshape/concatenation on some F16/F32 tensors; those
     # derived tensors can remain GGMLTensor subclasses while losing custom
     # tensor_type attributes. They are ordinary visual weights and must not be
     # treated as streamable text matrices anyway.
+    stage_start = time.perf_counter()
     state_dict = _wrap_gguf_tensors(state_dict)
+    _stage_done("文本 GGUF 流式权重包装", stage_start)
 
     # Keep the original plugin's mmproj discovery, Qwen3-VL merger mapping,
     # split-QKV reconstruction and visual state-dict behavior.
+    stage_start = time.perf_counter()
+    _LOG.info("MyCLIPGGUF: [2/4] 开始读取视觉塔 mmproj 权重。")
+    _memory_info("before mmproj")
     vision_state = loader.gguf_mmproj_loader(clip_path)
+    _stage_done("视觉塔 mmproj 读取", stage_start)
+    _memory_info("after mmproj")
     if not vision_state:
         raise RuntimeError(
             "Qwen3-VL / Qwen Image 2.1 必须有匹配的 mmproj GGUF。"
@@ -727,8 +772,8 @@ def _load_qwen_image21_state_dict(clip_path):
     # Visual mmproj weights retain the plugin's original loading behavior.
 
     _LOG.info(
-        "MyCLIPGGUF: Qwen3-VL state dict ready; arch=%s, token_embd=%s. "
-        "跳过了原版 gguf_clip_loader 的整张词表预反量化。",
+        "MyCLIPGGUF: [3/4] 权重准备完成；arch=%s，token_embd=%s；"
+        "词表保持按 token 行读取。",
         arch, token_shape,
     )
     return state_dict, extra
@@ -773,10 +818,14 @@ class MyCLIPGGUFLoader:
         return path
 
     def load_clip(self, clip_name, linear_chunk_rows=512):
+        total_start = time.perf_counter()
         vendor = _load_vendor_modules()
         clip_path = self._resolve_clip_path(clip_name)
         state_dict, extra = _load_qwen_image21_state_dict(clip_path)
 
+        stage_start = time.perf_counter()
+        _LOG.info("MyCLIPGGUF: [4/4] 开始构建 CLIP 文本编码器。")
+        _memory_info("before CLIP build")
         operations = _make_operations_class(linear_chunk_rows)
         model_options = {
             "custom_operations": operations,
@@ -797,11 +846,22 @@ class MyCLIPGGUFLoader:
         # MyGGMLTensor parameters refuse full-device migration, while other
         # model parameters follow the ordinary ComfyUI load/offload behavior.
         clip.patcher = vendor["nodes"].GGUFModelPatcher.clone(clip.patcher)
+        _stage_done("CLIP 构建及 patcher 克隆", stage_start)
+        _memory_info("after CLIP build")
+
+        # Drop temporary containers; model parameters may still reference mmap storage.
+        del state_dict
+        del extra
+        collected = gc.collect()
+        _LOG.info("MyCLIPGGUF: 临时 state_dict/extra 引用已释放，GC 回收对象数=%d。", collected)
+        _memory_info("after temporary state_dict release")
+        _install_encode_diagnostics(clip)
 
         _LOG.info(
             "MyCLIPGGUF: CLIP 加载完成：%s；Linear chunk_rows=%d；"
-            "文本编码器仍输出原生 CLIP 对象。",
+            "文本编码器仍输出原生 CLIP 对象；总耗时 %.2f 秒。",
             os.path.basename(clip_path), int(linear_chunk_rows),
+            time.perf_counter() - total_start,
         )
         return (clip,)
 
