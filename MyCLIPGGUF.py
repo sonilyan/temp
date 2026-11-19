@@ -45,18 +45,18 @@ def _memory_info(label):
         free_bytes, total_bytes = torch.cuda.mem_get_info()
         allocated = torch.cuda.memory_allocated()
         reserved = torch.cuda.memory_reserved()
-        _LOG.info(
-            "MyCLIPGGUF Memory [%s]: allocated=%.2f GiB, reserved=%.2f GiB, "
-            "device_free=%.2f GiB, device_total=%.2f GiB",
+        _LOG.debug(
+            "[MEM] %s | allocated=%.2f GiB | reserved=%.2f GiB | "
+            "device_free=%.2f GiB | device_total=%.2f GiB",
             label, allocated / (1024 ** 3), reserved / (1024 ** 3),
             free_bytes / (1024 ** 3), total_bytes / (1024 ** 3),
         )
     except Exception as exc:
-        _LOG.debug("MyCLIPGGUF: memory query failed at %s: %s", label, exc)
+        _LOG.debug("[MEM] 内存查询失败 | 阶段=%s | %s", label, exc)
 
 
 def _stage_done(stage, started):
-    _LOG.info("MyCLIPGGUF: %s 完成，耗时 %.2f 秒", stage, time.perf_counter() - started)
+    _LOG.info("[LOAD] %s 完成 | 耗时 %.2f 秒", stage, time.perf_counter() - started)
 
 
 def _clip_cache_key(clip_path, chunk_rows):
@@ -91,18 +91,21 @@ def _cleanup_after_text_encode():
             try:
                 torch.cuda.synchronize()
             except Exception as exc:
-                _LOG.debug("MyCLIPGGUF: CUDA synchronize skipped: %s", exc)
+                _LOG.debug("[TE] synchronize 跳过：%s", exc)
         _memory_info("TE cleanup before")
         collected = gc.collect()
         if torch.cuda.is_available():
             try:
                 torch.cuda.empty_cache()
             except Exception as exc:
-                _LOG.debug("MyCLIPGGUF: empty_cache skipped: %s", exc)
+                _LOG.debug("[TE] empty_cache 跳过：%s", exc)
         _memory_info("TE cleanup after")
-        _LOG.info("MyCLIPGGUF: TE 清理完成，GC 回收对象数=%d；不清理 Windows 文件缓存。", collected)
+        _LOG.debug(
+            "[TE] 清理完成 | GC 回收对象数=%d | 不清理 Windows 文件缓存",
+            collected,
+        )
     except Exception as exc:
-        _LOG.warning("MyCLIPGGUF: TE 清理失败：%s", exc)
+        _LOG.warning("[TE] 清理失败：%s", exc)
 
 
 def _install_encode_diagnostics(clip):
@@ -110,25 +113,25 @@ def _install_encode_diagnostics(clip):
     model = getattr(clip, "cond_stage_model", None)
     original = getattr(model, "encode_token_weights", None) if model is not None else None
     if not callable(original):
-        _LOG.warning("MyCLIPGGUF: 找不到 encode_token_weights，跳过 TE 诊断包装。")
+        _LOG.warning("[TE] 找不到 encode_token_weights，跳过编码诊断包装")
         return
     if getattr(original, "_myclipgguf_diagnostics", False):
         return
 
     def wrapped(*args, **kwargs):
         started = time.perf_counter()
-        _LOG.info("MyCLIPGGUF: TE 编码开始。")
+        _LOG.info("[TE] 文本编码开始")
         _memory_info("TE start")
         try:
             return original(*args, **kwargs)
         finally:
-            _stage_done("TE 编码", started)
+            _stage_done("TE 文本编码", started)
             _cleanup_after_text_encode()
 
     wrapped._myclipgguf_diagnostics = True
     wrapped._myclipgguf_original = original
     model.encode_token_weights = wrapped
-    _LOG.info("MyCLIPGGUF: 已安装 TE 编码进度与清理诊断。")
+    _LOG.info("[TE] 已安装文本编码耗时诊断")
 
 
 # -----------------------------------------------------------------------------
@@ -216,7 +219,7 @@ def _load_vendor_modules():
         "dequant": vendor_dequant,
         "nodes": vendor_nodes,
     }
-    _LOG.info("MyCLIPGGUF: 使用 ComfyUI-GGUF 插件目录：%s", plugin_dir)
+    _LOG.info("[INIT] 使用 ComfyUI-GGUF 插件目录：%s", plugin_dir)
     return _VENDOR
 
 
@@ -233,7 +236,7 @@ def _install_gguf_rms_norm_compat():
         import comfy.rmsnorm as comfy_rmsnorm
         import comfy.model_management as model_management
     except Exception as exc:
-        _LOG.warning("MyCLIPGGUF: 无法导入 RMSNorm 依赖，跳过兼容补丁：%s", exc)
+        _LOG.warning("[INIT] 无法导入 RMSNorm 依赖，跳过兼容补丁：%s", exc)
         return
 
     if getattr(comfy_rmsnorm.rms_norm, "_myclipgguf_compat", False):
@@ -271,8 +274,8 @@ def _install_gguf_rms_norm_compat():
     _gguf_safe_rms_norm._myclipgguf_original = original_rms_norm
     comfy_rmsnorm.rms_norm = _gguf_safe_rms_norm
     _LOG.warning(
-        "MyCLIPGGUF: 已安装 GGUF RMSNorm 兼容补丁；输入激活只剥离 Tensor 子类，"
-        "GGUF 权重按需反量化后再传给 PyTorch。"
+        "[INIT] 已安装 GGUF RMSNorm 兼容补丁；输入激活只剥离 Tensor 子类，"
+        "GGUF 权重按需反量化后再传给 PyTorch"
     )
 
 
@@ -402,7 +405,7 @@ def _wrap_gguf_tensors(state_dict):
         streamed += int(is_matrix_weight)
 
     _LOG.info(
-        "MyCLIPGGUF: GGMLTensor 包装完成：%d 个；其中 %d 个二维权重保持 CPU/mmap 并采用流式读取。",
+        "[WEIGHT] GGUF Tensor 包装完成 | 总计=%d | CPU/mmap 流式矩阵=%d",
         converted, streamed,
     )
     return state_dict
@@ -467,7 +470,6 @@ def _get_matrix_rows(weight, *, device, dtype, start=None, end=None, row_ids=Non
             "为避免整矩阵反量化造成 OOM，本节点不会自动退回整表反量化。"
             % getattr(qtype, "name", repr(qtype))
         )
-
     try:
         block_size, type_size = gguf.GGML_QUANT_SIZES[qtype]
     except Exception as e:
@@ -746,7 +748,7 @@ def _load_qwen_image21_state_dict(clip_path):
     loader = vendor["loader"]
 
     stage_start = time.perf_counter()
-    _LOG.info("MyCLIPGGUF: [1/4] 开始读取文本 GGUF 权重：%s", os.path.basename(clip_path))
+    _LOG.info("[LOAD 1/4] 开始读取文本 GGUF：%s", os.path.basename(clip_path))
     _memory_info("before text GGUF")
     state_dict, extra = loader.gguf_sd_loader(clip_path, is_text_model=True)
     _stage_done("文本 GGUF 权重读取", stage_start)
@@ -787,7 +789,7 @@ def _load_qwen_image21_state_dict(clip_path):
     # Keep the original plugin's mmproj discovery, Qwen3-VL merger mapping,
     # split-QKV reconstruction and visual state-dict behavior.
     stage_start = time.perf_counter()
-    _LOG.info("MyCLIPGGUF: [2/4] 开始读取视觉塔 mmproj 权重。")
+    _LOG.info("[LOAD 2/4] 开始读取视觉塔 mmproj")
     _memory_info("before mmproj")
     vision_state = loader.gguf_mmproj_loader(clip_path)
     _stage_done("视觉塔 mmproj 读取", stage_start)
@@ -804,11 +806,13 @@ def _load_qwen_image21_state_dict(clip_path):
     # Visual mmproj weights retain the plugin's original loading behavior.
 
     _LOG.info(
-        "MyCLIPGGUF: [3/4] 权重准备完成；arch=%s，token_embd=%s；"
-        "词表保持按 token 行读取。",
+        "[LOAD 3/4] 权重准备完成 | arch=%s | token_embd=%s | "
+        "词表保持按 token 行读取",
         arch, token_shape,
     )
     return state_dict, extra
+
+
 # -----------------------------------------------------------------------------
 # ComfyUI node
 # -----------------------------------------------------------------------------
@@ -849,13 +853,13 @@ class MyCLIPGGUFLoader:
         return path
 
     def load_clip(self, model, clip_name, linear_chunk_rows=512):
-        _LOG.info("MyCLIPGGUF: 开始预加载 DiT 到 GPU。")
+        _LOG.info("[LOAD] 开始预加载 DiT 到 GPU")
         _memory_info("before DiT preload")
 
         comfy.model_management.load_models_gpu([model])
 
         _memory_info("after DiT preload")
-        _LOG.info("MyCLIPGGUF: DiT GPU 预加载完成。")
+        _LOG.info("[LOAD] DiT GPU 预加载完成")
         global _CLIP_CACHE
         total_start = time.perf_counter()
         vendor = _load_vendor_modules()
@@ -870,21 +874,21 @@ class MyCLIPGGUFLoader:
             if _CLIP_CACHE is not None and _CLIP_CACHE["key"] == cache_key:
                 clip = _CLIP_CACHE["clip"]
                 _LOG.info(
-                    "MyCLIPGGUF: CLIP_CACHE_HIT：%s；Linear chunk_rows=%d；"
-                    "复用现有 CLIP/mmap，不重新读取文本 GGUF 或 mmproj。",
+                    "[CACHE] HIT | %s | Linear chunk_rows=%d | "
+                    "复用现有 CLIP/mmap，不重新读取文本 GGUF 或 mmproj",
                     os.path.basename(clip_path), int(linear_chunk_rows),
                 )
                 _memory_info("CLIP cache hit")
                 return (clip,)
 
             _LOG.info(
-                "MyCLIPGGUF: CLIP_CACHE_MISS：%s；Linear chunk_rows=%d；开始构建。",
+                "[CACHE] MISS | %s | Linear chunk_rows=%d | 开始构建",
                 os.path.basename(clip_path), int(linear_chunk_rows),
             )
             state_dict, extra = _load_qwen_image21_state_dict(clip_path)
 
             stage_start = time.perf_counter()
-            _LOG.info("MyCLIPGGUF: [4/4] 开始构建 CLIP 文本编码器。")
+            _LOG.info("[LOAD 4/4] 开始构建 CLIP 文本编码器")
             _memory_info("before CLIP build")
             operations = _make_operations_class(linear_chunk_rows)
             model_options = {
@@ -914,7 +918,10 @@ class MyCLIPGGUFLoader:
             del state_dict
             del extra
             collected = gc.collect()
-            _LOG.info("MyCLIPGGUF: 临时 state_dict/extra 引用已释放，GC 回收对象数=%d。", collected)
+            _LOG.info(
+                "[LOAD] 临时 state_dict/extra 引用已释放 | GC 回收对象数=%d",
+                collected,
+            )
             _memory_info("after temporary state_dict release")
             _install_encode_diagnostics(clip)
 
@@ -922,8 +929,8 @@ class MyCLIPGGUFLoader:
             _CLIP_CACHE = {"key": cache_key, "clip": clip}
 
             _LOG.info(
-                "MyCLIPGGUF: CLIP 加载完成并已缓存：%s；Linear chunk_rows=%d；"
-                "总耗时 %.2f 秒。",
+                "[LOAD] CLIP 加载完成并已缓存 | %s | Linear chunk_rows=%d | "
+                "总耗时 %.2f 秒",
                 os.path.basename(clip_path), int(linear_chunk_rows),
                 time.perf_counter() - total_start,
             )
