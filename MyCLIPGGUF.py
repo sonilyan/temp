@@ -15,7 +15,6 @@ import importlib
 import logging
 import gc
 import time
-import threading
 
 import torch
 import torch.nn.functional as F
@@ -29,12 +28,6 @@ import comfy.model_management
 _LOG = logging.getLogger("MyCLIPGGUF")
 _VENDOR_PACKAGE_NAME = "_myclipgguf_vendor"
 _VENDOR = None
-
-# Keep one fully constructed CLIP alive across repeated workflow loops.
-# The model's streamable matrix parameters retain their CPU/mmap-backed
-# storage through this reference, so later loops do not reopen either GGUF.
-_CLIP_CACHE = None
-_CLIP_CACHE_LOCK = threading.RLock()
 
 
 def _memory_info(label):
@@ -57,31 +50,6 @@ def _memory_info(label):
 
 def _stage_done(stage, started):
     _LOG.info("MyCLIPGGUF: %s 完成，耗时 %.2f 秒", stage, time.perf_counter() - started)
-
-
-def _clip_cache_key(clip_path, chunk_rows):
-    """Fingerprint the text GGUF and the mmproj selected by ComfyUI-GGUF."""
-    text_path = os.path.normcase(os.path.realpath(clip_path))
-
-    def _file_signature(path):
-        stat = os.stat(path)
-        return (os.path.normcase(os.path.realpath(path)), stat.st_size, stat.st_mtime_ns)
-
-    text_signature = _file_signature(text_path)
-    vendor = _load_vendor_modules()
-    strip_suffix = vendor["loader"].strip_quant_suffix
-    text_name = os.path.splitext(os.path.basename(text_path))[0].lower()
-    text_name = strip_suffix(text_name)
-    root = os.path.dirname(text_path)
-    mmproj_candidates = []
-    for filename in os.listdir(root):
-        name, ext = os.path.splitext(filename)
-        if ext.lower() == ".gguf" and "mmproj" in name.lower() and text_name in name.lower():
-            mmproj_candidates.append(os.path.join(root, filename))
-    # The upstream loader uses the first os.listdir() match. Include all
-    # matching candidates in the key so additions/removals also invalidate it.
-    mmproj_signature = tuple(_file_signature(path) for path in mmproj_candidates)
-    return (text_signature, mmproj_signature, int(chunk_rows))
 
 
 def _cleanup_after_text_encode():
@@ -809,6 +777,8 @@ def _load_qwen_image21_state_dict(clip_path):
         arch, token_shape,
     )
     return state_dict, extra
+
+
 # -----------------------------------------------------------------------------
 # ComfyUI node
 # -----------------------------------------------------------------------------
@@ -848,78 +818,52 @@ class MyCLIPGGUFLoader:
         return path
 
     def load_clip(self, clip_name, linear_chunk_rows=512):
-        global _CLIP_CACHE
         total_start = time.perf_counter()
         vendor = _load_vendor_modules()
         clip_path = self._resolve_clip_path(clip_name)
-        cache_key = _clip_cache_key(clip_path, linear_chunk_rows)
+        state_dict, extra = _load_qwen_image21_state_dict(clip_path)
 
-        # Serialize cache lookup/build. Returning the same CLIP object is
-        # intentional: ComfyUI may load/offload its patcher between loops, but
-        # its CPU/mmap-backed GGUF matrix tensors remain owned by the cached
-        # model and are not reparsed from disk.
-        with _CLIP_CACHE_LOCK:
-            if _CLIP_CACHE is not None and _CLIP_CACHE["key"] == cache_key:
-                clip = _CLIP_CACHE["clip"]
-                _LOG.info(
-                    "MyCLIPGGUF: CLIP_CACHE_HIT：%s；Linear chunk_rows=%d；"
-                    "复用现有 CLIP/mmap，不重新读取文本 GGUF 或 mmproj。",
-                    os.path.basename(clip_path), int(linear_chunk_rows),
-                )
-                _memory_info("CLIP cache hit")
-                return (clip,)
+        stage_start = time.perf_counter()
+        _LOG.info("MyCLIPGGUF: [4/4] 开始构建 CLIP 文本编码器。")
+        _memory_info("before CLIP build")
+        operations = _make_operations_class(linear_chunk_rows)
+        model_options = {
+            "custom_operations": operations,
+            "initial_device": comfy.model_management.text_encoder_offload_device(),
+        }
 
-            _LOG.info(
-                "MyCLIPGGUF: CLIP_CACHE_MISS：%s；Linear chunk_rows=%d；开始构建。",
-                os.path.basename(clip_path), int(linear_chunk_rows),
-            )
-            state_dict, extra = _load_qwen_image21_state_dict(clip_path)
+        clip_type = comfy.sd.CLIPType.QWEN_IMAGE
+        clip = comfy.sd.load_text_encoder_state_dicts(
+            state_dicts=[state_dict],
+            clip_type=clip_type,
+            model_options=model_options,
+            embedding_directory=folder_paths.get_folder_paths("embeddings"),
+        )
+        if clip is None or getattr(clip, "patcher", None) is None:
+            raise RuntimeError("MyCLIPGGUF: ComfyUI 没有成功构建 Qwen Image 2.1 CLIP。")
 
-            stage_start = time.perf_counter()
-            _LOG.info("MyCLIPGGUF: [4/4] 开始构建 CLIP 文本编码器。")
-            _memory_info("before CLIP build")
-            operations = _make_operations_class(linear_chunk_rows)
-            model_options = {
-                "custom_operations": operations,
-                "initial_device": comfy.model_management.text_encoder_offload_device(),
-            }
+        # Reuse the installed plugin's GGUF-aware patcher. Streamable 2D
+        # MyGGMLTensor parameters refuse full-device migration, while other
+        # model parameters follow the ordinary ComfyUI load/offload behavior.
+        clip.patcher = vendor["nodes"].GGUFModelPatcher.clone(clip.patcher)
+        _stage_done("CLIP 构建及 patcher 克隆", stage_start)
+        _memory_info("after CLIP build")
 
-            clip_type = comfy.sd.CLIPType.QWEN_IMAGE
-            clip = comfy.sd.load_text_encoder_state_dicts(
-                state_dicts=[state_dict],
-                clip_type=clip_type,
-                model_options=model_options,
-                embedding_directory=folder_paths.get_folder_paths("embeddings"),
-            )
-            if clip is None or getattr(clip, "patcher", None) is None:
-                raise RuntimeError("MyCLIPGGUF: ComfyUI 没有成功构建 Qwen Image 2.1 CLIP。")
+        # Drop temporary containers; model parameters may still reference mmap storage.
+        del state_dict
+        del extra
+        collected = gc.collect()
+        _LOG.info("MyCLIPGGUF: 临时 state_dict/extra 引用已释放，GC 回收对象数=%d。", collected)
+        _memory_info("after temporary state_dict release")
+        _install_encode_diagnostics(clip)
 
-            # Reuse the installed plugin's GGUF-aware patcher. Streamable 2D
-            # MyGGMLTensor parameters refuse full-device migration, while other
-            # model parameters follow the ordinary ComfyUI load/offload behavior.
-            clip.patcher = vendor["nodes"].GGUFModelPatcher.clone(clip.patcher)
-            _stage_done("CLIP 构建及 patcher 克隆", stage_start)
-            _memory_info("after CLIP build")
-
-            # Keep the mmap-backed model alive in _CLIP_CACHE. Only temporary
-            # state-dict containers are dropped; the model owns the tensor views.
-            del state_dict
-            del extra
-            collected = gc.collect()
-            _LOG.info("MyCLIPGGUF: 临时 state_dict/extra 引用已释放，GC 回收对象数=%d。", collected)
-            _memory_info("after temporary state_dict release")
-            _install_encode_diagnostics(clip)
-
-            # Single-entry cache avoids retaining multiple large text encoders.
-            _CLIP_CACHE = {"key": cache_key, "clip": clip}
-
-            _LOG.info(
-                "MyCLIPGGUF: CLIP 加载完成并已缓存：%s；Linear chunk_rows=%d；"
-                "总耗时 %.2f 秒。",
-                os.path.basename(clip_path), int(linear_chunk_rows),
-                time.perf_counter() - total_start,
-            )
-            return (clip,)
+        _LOG.info(
+            "MyCLIPGGUF: CLIP 加载完成：%s；Linear chunk_rows=%d；"
+            "文本编码器仍输出原生 CLIP 对象；总耗时 %.2f 秒。",
+            os.path.basename(clip_path), int(linear_chunk_rows),
+            time.perf_counter() - total_start,
+        )
+        return (clip,)
 
 
 NODE_CLASS_MAPPINGS = {
