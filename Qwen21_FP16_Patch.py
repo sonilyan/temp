@@ -1,3 +1,4 @@
+
 """
 Qwen-Image 2.1 TE FP16 runtime patch for ComfyUI.
 
@@ -15,7 +16,6 @@ What it changes:
   4. Feeds FP16 pixels into the Qwen3-VL vision tower.
   5. Casts interpolated vision positional embeddings and vision RoPE to FP16.
   6. Casts text MRoPE frequencies to FP16 before the Q/K rotary operation.
-  7. Adds targeted dtype trace hooks inside the Qwen-Image 2.1 vision/text towers.
 
 The existing final conditioning conversion to FP32 is deliberately preserved.
 Quantization metadata is passed through unchanged.
@@ -26,7 +26,6 @@ import numbers
 import torch
 
 _LOG = logging.getLogger("Qwen21_FP16_Patch")
-_PATCH_NAME = "Qwen-Image 2.1 TE FP16"
 _PATCHED = False
 
 
@@ -35,7 +34,6 @@ def _is_qwen21_te(model, qwen21_module):
     try:
         return isinstance(model, qwen21_module.QwenImage21TEModel)
     except Exception:
-        # Fallback for unusual import/reload arrangements.
         for cls in type(model).__mro__:
             if cls.__name__.startswith("QwenImage21TEModel"):
                 return True
@@ -60,59 +58,27 @@ def _install_vision_dtype_wrappers(qwen35_module):
         if original is None or getattr(original, "_qwen21_fp16_wrapped", False):
             continue
 
-        def make_wrapper(original_method, name):
+        def make_wrapper(original_method):
             def wrapped(self, *args, **kwargs):
                 result = original_method(self, *args, **kwargs)
-                if getattr(self, "_qwen21_fp16_patch", False) and torch.is_tensor(result):
-                    result = result.to(dtype=getattr(self, "_qwen21_fp16_dtype", torch.float16))
-                    logged_attr = f"_qwen21_{name}_logged"
-                    if not getattr(self, logged_attr, False):
-                        _LOG.info(
-                            "[Qwen21 FP16] vision %s output=%s",
-                            name,
-                            result.dtype,
-                        )
-                        setattr(self, logged_attr, True)
+                if (
+                    getattr(self, "_qwen21_fp16_patch", False)
+                    and torch.is_tensor(result)
+                ):
+                    result = result.to(
+                        dtype=getattr(self, "_qwen21_fp16_dtype", torch.float16)
+                    )
                 return result
 
             wrapped._qwen21_fp16_wrapped = True
             wrapped._qwen21_fp16_original = original_method
             return wrapped
 
-        setattr(qwen35_module.Qwen35VisionModel, method_name, make_wrapper(original, method_name))
-
-
-def _install_vision_dtype_hooks(visual):
-    """Log the actual dtype at key boundaries inside this Qwen21 vision tower."""
-    if getattr(visual, "_qwen21_fp16_hooks_installed", False):
-        return
-
-    def make_hook(name):
-        def hook(_module, _inputs, output):
-            value = output[0] if isinstance(output, (tuple, list)) and output else output
-            if torch.is_tensor(value):
-                _LOG.info("[Qwen21 FP16 TRACE] vision.%s output=%s", name, value.dtype)
-        return hook
-
-    targets = []
-    if getattr(visual, "patch_embed", None) is not None:
-        targets.append(("patch_embed", visual.patch_embed))
-    blocks = getattr(visual, "blocks", None)
-    if blocks:
-        targets.append(("blocks.0", blocks[0]))
-        if len(blocks) > 1:
-            targets.append((f"blocks.{len(blocks) // 2}", blocks[len(blocks) // 2]))
-        if len(blocks) > 2:
-            targets.append((f"blocks.{len(blocks) - 1}", blocks[-1]))
-    if getattr(visual, "merger", None) is not None:
-        targets.append(("merger", visual.merger))
-    for name, module in targets:
-        module.register_forward_hook(make_hook(name))
-
-    for index, module in enumerate(getattr(visual, "deepstack_merger_list", []) or []):
-        module.register_forward_hook(make_hook(f"deepstack_merger.{index}"))
-
-    visual._qwen21_fp16_hooks_installed = True
+        setattr(
+            qwen35_module.Qwen35VisionModel,
+            method_name,
+            make_wrapper(original),
+        )
 
 
 def _make_fp16_process_tokens(qwen21_module):
@@ -243,17 +209,7 @@ def _make_fp16_process_tokens(qwen21_module):
             attention_masks.append(attention_mask)
             num_tokens.append(sum(attention_mask))
 
-        if not getattr(self, "_qwen21_fp16_process_logged", False):
-            _LOG.info(
-                "[Qwen21 FP16] process_tokens: token/image/pad embeddings=%s",
-                target_dtype,
-            )
-            self._qwen21_fp16_process_logged = True
-
         result_embeds = torch.cat(embeds_out)
-        if not getattr(self, "_qwen21_fp16_final_embed_logged", False):
-            _LOG.info("[Qwen21 FP16] assembled transformer input=%s", result_embeds.dtype)
-            self._qwen21_fp16_final_embed_logged = True
 
         return (
             result_embeds,
@@ -291,17 +247,18 @@ def _install():
             dtype_llama=None,
             llama_quantization_metadata=None,
         ):
-            # Subclass the concrete Qwen-Image 2.1 TE class directly.
-            # Do not subclass original_te_factory(...): its generated __init__
-            # would overwrite our FP16 dtype again with dtype_llama.
             class QwenImage21TEModelFP16(qwen21.QwenImage21TEModel):
                 def __init__(self, device="cpu", dtype=None, model_options=None):
                     if model_options is None:
                         model_options = {}
                     else:
                         model_options = model_options.copy()
+
                     if llama_quantization_metadata is not None:
-                        model_options["quantization_metadata"] = llama_quantization_metadata
+                        model_options["quantization_metadata"] = (
+                            llama_quantization_metadata
+                        )
+
                     super().__init__(
                         device=device,
                         dtype=torch.float16,
@@ -318,8 +275,6 @@ def _install():
 
     # ------------------------------------------------------------------
     # 2) Ensure ModelPatcher's compute dtype is FP16 for this TE only.
-    #    This intercepts the existing sd.py float32 request before weights
-    #    are loaded/cast. Other models retain the original behavior.
     # ------------------------------------------------------------------
     patcher_classes = []
     for name in ("ModelPatcher", "CoreModelPatcher"):
@@ -339,82 +294,59 @@ def _install():
                 model = getattr(self, "model", None)
                 if _is_qwen21_te(model, qwen21):
                     dtype = torch.float16
-                    if not getattr(self, "_qwen21_fp16_patcher_logged", False):
-                        _LOG.info(
-                            "[Qwen21 FP16] ModelPatcher compute dtype forced to FP16"
-                        )
-                        self._qwen21_fp16_patcher_logged = True
                 return original_method(self, dtype)
 
             set_model_compute_dtype_fp16._qwen21_fp16_wrapped = True
             set_model_compute_dtype_fp16._qwen21_fp16_original = original_method
             return set_model_compute_dtype_fp16
 
-        setattr(cls, "set_model_compute_dtype", make_set_dtype_wrapper(original_set_dtype))
+        setattr(
+            cls,
+            "set_model_compute_dtype",
+            make_set_dtype_wrapper(original_set_dtype),
+        )
 
     # ------------------------------------------------------------------
-    # 3) Mark the Qwen-Image 2.1 transformer instance so the vision input
-    #    patch below cannot affect other Qwen3-VL users.
+    # 3) Mark the Qwen-Image 2.1 transformer instance.
     # ------------------------------------------------------------------
     qwen21_clip_cls = qwen21.QwenImage21Qwen3VLClipModel
+
     if not getattr(qwen21_clip_cls.__init__, "_qwen21_fp16_wrapped", False):
         original_clip_init = qwen21_clip_cls.__init__
 
         def qwen21_clip_init_fp16(self, *args, **kwargs):
             original_clip_init(self, *args, **kwargs)
+
             transformer = getattr(self, "transformer", None)
             if transformer is not None:
                 transformer._qwen21_fp16_patch = True
                 transformer.dtype = torch.float16
 
-                # The vision tower is Qwen35VisionModel. GGUF mmproj files may
-                # retain FP32 positional-embedding tensors even when the model
-                # compute dtype is FP16. fast_pos_embed_interpolate() then
-                # returns FP32, and x + pos_embeds silently promotes the whole
-                # vision stream to FP32. Cast the positional result at its
-                # boundary, and do the same for the FP32 RoPE frequencies.
+                # Keep vision positional embeddings and RoPE in FP16.
                 visual = getattr(transformer, "visual", None)
                 if visual is not None:
                     visual._qwen21_fp16_patch = True
                     visual._qwen21_fp16_dtype = torch.float16
-                    _install_vision_dtype_hooks(visual)
 
-                # Llama2_ computes text MRoPE frequencies in FP32. On this
-                # target model, keep the frequencies in the activation dtype
-                # before apply_rope_split_half so Q/K do not get promoted.
+                # Keep text MRoPE frequencies in the activation dtype.
                 llama_model = getattr(transformer, "model", None)
-                if llama_model is not None and not getattr(llama_model, "_qwen21_fp16_rope_wrapped", False):
+                if (
+                    llama_model is not None
+                    and not getattr(
+                        llama_model,
+                        "_qwen21_fp16_rope_wrapped",
+                        False,
+                    )
+                ):
                     original_compute_freqs = llama_model.compute_freqs_cis
 
                     def compute_freqs_cis_fp16(position_ids, device):
                         freqs = original_compute_freqs(position_ids, device)
-                        freqs = _cast_nested_fp16(freqs)
-                        if not getattr(llama_model, "_qwen21_fp16_rope_logged", False):
-                            def first_dtype(value):
-                                if torch.is_tensor(value):
-                                    return value.dtype
-                                if isinstance(value, (tuple, list)):
-                                    for item in value:
-                                        found = first_dtype(item)
-                                        if found is not None:
-                                            return found
-                                return None
-                            _LOG.info("[Qwen21 FP16] text RoPE dtype=%s", first_dtype(freqs))
-                            llama_model._qwen21_fp16_rope_logged = True
-                        return freqs
+                        return _cast_nested_fp16(freqs)
 
                     llama_model.compute_freqs_cis = compute_freqs_cis_fp16
                     llama_model._qwen21_fp16_rope_wrapped = True
 
-                if llama_model is not None:
-                    layers = getattr(llama_model, "layers", None)
-                    if layers and not getattr(llama_model, "_qwen21_fp16_layer_hook", False):
-                        def first_text_block_hook(_module, _inputs, output):
-                            value = output[0] if isinstance(output, (tuple, list)) and output else output
-                            if torch.is_tensor(value):
-                                _LOG.info("[Qwen21 FP16 TRACE] text.layers.0 output=%s", value.dtype)
-                        layers[0].register_forward_hook(first_text_block_hook)
-                        llama_model._qwen21_fp16_layer_hook = True
             self._qwen21_fp16_patch = True
 
         qwen21_clip_init_fp16._qwen21_fp16_wrapped = True
@@ -423,11 +355,12 @@ def _install():
 
     # ------------------------------------------------------------------
     # 4) Replace only the Qwen-Image 2.1 process_tokens path.
-    #    QwenImage21Qwen3VLClipModel.process_tokens() calls super(), so
-    #    this SDClipModel wrapper catches that call and leaves all other
-    #    SDClipModel subclasses untouched.
     # ------------------------------------------------------------------
-    if not getattr(sd1_clip.SDClipModel.process_tokens, "_qwen21_fp16_wrapped", False):
+    if not getattr(
+        sd1_clip.SDClipModel.process_tokens,
+        "_qwen21_fp16_wrapped",
+        False,
+    ):
         original_process_tokens = sd1_clip.SDClipModel.process_tokens
         fp16_process_tokens = _make_fp16_process_tokens(qwen21)
 
@@ -441,10 +374,13 @@ def _install():
         sd1_clip.SDClipModel.process_tokens = process_tokens_dispatch
 
     # ------------------------------------------------------------------
-    # 5) Feed FP16 image pixels into the Qwen3-VL vision tower, only when
-    #    the transformer was marked by Qwen-Image 2.1's clip model.
+    # 5) Feed FP16 image pixels into the Qwen3-VL vision tower.
     # ------------------------------------------------------------------
-    if not getattr(qwen3vl.Qwen3VL.preprocess_embed, "_qwen21_fp16_wrapped", False):
+    if not getattr(
+        qwen3vl.Qwen3VL.preprocess_embed,
+        "_qwen21_fp16_wrapped",
+        False,
+    ):
         original_preprocess_embed = qwen3vl.Qwen3VL.preprocess_embed
 
         def preprocess_embed_fp16(self, embed, device):
@@ -461,16 +397,6 @@ def _install():
                 image = image.to(device=device, dtype=torch.float16)
                 merged, deepstack = self.visual(image, grid)
 
-                if not getattr(self, "_qwen21_fp16_vision_logged", False):
-                    deepstack_dtypes = [x.dtype for x in deepstack] if deepstack is not None else []
-                    _LOG.info(
-                        "[Qwen21 FP16] vision input=%s, vision output=%s, DeepStack=%s",
-                        image.dtype,
-                        merged.dtype,
-                        deepstack_dtypes,
-                    )
-                    self._qwen21_fp16_vision_logged = True
-
                 return merged, {"grid": grid, "deepstack": deepstack}
 
             return original_preprocess_embed(self, embed, device)
@@ -480,15 +406,6 @@ def _install():
         qwen3vl.Qwen3VL.preprocess_embed = preprocess_embed_fp16
 
     _PATCHED = True
-    _LOG.warning(
-        "============================================================\n"
-        "[Qwen21 FP16 Patch] Installed.\n"
-        "Target: built-in Qwen-Image 2.1 / Qwen3-VL 8B TE only.\n"
-        "TE compute, token embeddings, vision positional embeddings/RoPE and text RoPE: FP16.\n"
-        "Vision/text intermediate dtype tracing enabled; final conditioning remains FP32.\n"
-        "DiT, VAE and other models remain unchanged.\n"
-        "============================================================"
-    )
 
 
 try:
