@@ -799,6 +799,26 @@ def _load_qwen_image21_state_dict(clip_path):
             "Qwen3-VL / Qwen Image 2.1 必须有匹配的 mmproj GGUF。"
             "请把对应 mmproj 文件放在文本编码器 GGUF 同一目录，并确保文件名包含匹配的模型名。"
         )
+    # Drop the original split Q/K/V entries after the merged QKV tensor exists.
+    removed_qkv = 0
+    for key in list(vision_state):
+        for split_name in ("attn_q", "attn_k", "attn_v"):
+            marker = "." + split_name + "."
+            if marker not in key:
+                continue
+            prefix, suffix = key.rsplit(marker, 1)
+            merged_key = prefix + ".attn.qkv." + suffix
+            if merged_key in vision_state:
+                del vision_state[key]
+                removed_qkv += 1
+            break
+
+    if removed_qkv:
+        _LOG.info(
+            "[MMProj] 已释放拆分 Q/K/V 源权重键=%d（保留合并后的 QKV）",
+            removed_qkv,
+        )
+
     vision_state = {"model." + key: value for key, value in vision_state.items()}
     state_dict.update(vision_state)
 
