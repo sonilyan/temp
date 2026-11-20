@@ -14,7 +14,6 @@ import types
 import importlib
 import logging
 import gc
-import time
 import threading
 
 import torch
@@ -35,28 +34,6 @@ _VENDOR = None
 # storage through this reference, so later loops do not reopen either GGUF.
 _CLIP_CACHE = None
 _CLIP_CACHE_LOCK = threading.RLock()
-
-
-def _memory_info(label):
-    """Log PyTorch CUDA/ROCm allocator statistics without clearing memory."""
-    try:
-        if not torch.cuda.is_available():
-            return
-        free_bytes, total_bytes = torch.cuda.mem_get_info()
-        allocated = torch.cuda.memory_allocated()
-        reserved = torch.cuda.memory_reserved()
-        _LOG.debug(
-            "[MEM] %s | allocated=%.2f GiB | reserved=%.2f GiB | "
-            "device_free=%.2f GiB | device_total=%.2f GiB",
-            label, allocated / (1024 ** 3), reserved / (1024 ** 3),
-            free_bytes / (1024 ** 3), total_bytes / (1024 ** 3),
-        )
-    except Exception as exc:
-        _LOG.debug("[MEM] 内存查询失败 | 阶段=%s | %s", label, exc)
-
-
-def _stage_done(stage, started):
-    _LOG.info("[LOAD] %s 完成 | 耗时 %.2f 秒", stage, time.perf_counter() - started)
 
 
 def _clip_cache_key(clip_path, chunk_rows):
@@ -83,63 +60,6 @@ def _clip_cache_key(clip_path, chunk_rows):
     mmproj_signature = tuple(_file_signature(path) for path in mmproj_candidates)
     return (text_signature, mmproj_signature, int(chunk_rows))
 
-
-def _cleanup_after_text_encode():
-    """Collect unreachable Python objects and release unused allocator blocks."""
-    try:
-        if torch.cuda.is_available():
-            try:
-                torch.cuda.synchronize()
-            except Exception as exc:
-                _LOG.debug("[TE] synchronize 跳过：%s", exc)
-        _memory_info("TE cleanup before")
-        collected = gc.collect()
-        if torch.cuda.is_available():
-            try:
-                torch.cuda.empty_cache()
-            except Exception as exc:
-                _LOG.debug("[TE] empty_cache 跳过：%s", exc)
-        _memory_info("TE cleanup after")
-        _LOG.debug(
-            "[TE] 清理完成 | GC 回收对象数=%d | 不清理 Windows 文件缓存",
-            collected,
-        )
-    except Exception as exc:
-        _LOG.warning("[TE] 清理失败：%s", exc)
-
-
-def _install_encode_diagnostics(clip):
-    """Wrap the public TE entry point; internal vision stages are not instrumented."""
-    model = getattr(clip, "cond_stage_model", None)
-    original = getattr(model, "encode_token_weights", None) if model is not None else None
-    if not callable(original):
-        _LOG.warning("[TE] 找不到 encode_token_weights，跳过编码诊断包装")
-        return
-    if getattr(original, "_myclipgguf_diagnostics", False):
-        return
-
-    def wrapped(*args, **kwargs):
-        started = time.perf_counter()
-        _LOG.info("[TE] 文本编码开始")
-        _memory_info("TE start")
-        try:
-            return original(*args, **kwargs)
-        finally:
-            _stage_done("TE 文本编码", started)
-            _cleanup_after_text_encode()
-
-    wrapped._myclipgguf_diagnostics = True
-    wrapped._myclipgguf_original = original
-    model.encode_token_weights = wrapped
-    _LOG.info("[TE] 已安装文本编码耗时诊断")
-
-
-# -----------------------------------------------------------------------------
-# Locate and import the installed ComfyUI-GGUF modules without importing its
-# package __init__.py. The plugin's own loader/ops/dequant code is reused, so
-# GGUF parsing and supported quantization formats remain consistent with the
-# installed plugin version.
-# -----------------------------------------------------------------------------
 
 def _find_gguf_plugin_dir():
     roots = [os.path.dirname(os.path.abspath(__file__))]
@@ -219,7 +139,6 @@ def _load_vendor_modules():
         "dequant": vendor_dequant,
         "nodes": vendor_nodes,
     }
-    _LOG.info("[INIT] 使用 ComfyUI-GGUF 插件目录：%s", plugin_dir)
     return _VENDOR
 
 
@@ -236,7 +155,7 @@ def _install_gguf_rms_norm_compat():
         import comfy.rmsnorm as comfy_rmsnorm
         import comfy.model_management as model_management
     except Exception as exc:
-        _LOG.warning("[INIT] 无法导入 RMSNorm 依赖，跳过兼容补丁：%s", exc)
+        _LOG.warning("MyCLIPGGUF: 无法导入 RMSNorm 依赖，跳过兼容补丁：%s", exc)
         return
 
     if getattr(comfy_rmsnorm.rms_norm, "_myclipgguf_compat", False):
@@ -273,10 +192,6 @@ def _install_gguf_rms_norm_compat():
     _gguf_safe_rms_norm._myclipgguf_compat = True
     _gguf_safe_rms_norm._myclipgguf_original = original_rms_norm
     comfy_rmsnorm.rms_norm = _gguf_safe_rms_norm
-    _LOG.warning(
-        "[INIT] 已安装 GGUF RMSNorm 兼容补丁；输入激活只剥离 Tensor 子类，"
-        "GGUF 权重按需反量化后再传给 PyTorch"
-    )
 
 
 # Install at custom-node import time, before any sampling begins.
@@ -348,9 +263,6 @@ def _wrap_gguf_tensors(state_dict):
     vendor = _load_vendor_modules()
     base_type = vendor["ops"].GGMLTensor
     tensor_type = _ensure_my_tensor_class()
-    converted = 0
-    streamed = 0
-
     for key, value in list(state_dict.items()):
         if not isinstance(value, base_type):
             continue
@@ -388,7 +300,6 @@ def _wrap_gguf_tensors(state_dict):
         is_torch_compatible = vendor["dequant"].is_torch_compatible(value)
         if not is_matrix_weight and is_torch_compatible:
             state_dict[key] = raw
-            converted += 1
             continue
 
         wrapped = tensor_type(
@@ -401,13 +312,6 @@ def _wrap_gguf_tensors(state_dict):
         if getattr(value, "is_largest_weight", False):
             wrapped.is_largest_weight = True
         state_dict[key] = wrapped
-        converted += 1
-        streamed += int(is_matrix_weight)
-
-    _LOG.info(
-        "[WEIGHT] GGUF Tensor 包装完成 | 总计=%d | CPU/mmap 流式矩阵=%d",
-        converted, streamed,
-    )
     return state_dict
 
 
@@ -512,8 +416,6 @@ def _get_matrix_rows(weight, *, device, dtype, start=None, end=None, row_ids=Non
     )
     rows_count = int(row_ids.numel()) if row_ids is not None else int(end) - int(start)
     return dequantized.reshape(rows_count, in_features).to(dtype=dtype)
-
-
 def _full_weight_fallback(layer, input_tensor, output_dtype=None):
     """Correctness fallback for patched weights (e.g. LoRA)."""
     dtype = output_dtype or input_tensor.dtype
@@ -746,13 +648,7 @@ def _make_operations_class(chunk_rows):
 def _load_qwen_image21_state_dict(clip_path):
     vendor = _load_vendor_modules()
     loader = vendor["loader"]
-
-    stage_start = time.perf_counter()
-    _LOG.info("[LOAD 1/4] 开始读取文本 GGUF：%s", os.path.basename(clip_path))
-    _memory_info("before text GGUF")
     state_dict, extra = loader.gguf_sd_loader(clip_path, is_text_model=True)
-    _stage_done("文本 GGUF 权重读取", stage_start)
-    _memory_info("after text GGUF")
     arch = extra.get("arch_str")
     if arch != "qwen3vl":
         raise RuntimeError(
@@ -773,27 +669,16 @@ def _load_qwen_image21_state_dict(clip_path):
 
     # Match the original plugin's llama.cpp -> ComfyUI key conversion, but
     # deliberately skip its eager token_embd.weight dequantization.
-    stage_start = time.perf_counter()
     state_dict = loader.sd_map_replace(state_dict, loader.LLAMA_SD_MAP)
-    _stage_done("文本权重 key 映射", stage_start)
-
     # Wrap the text GGUF tensors BEFORE loading/merging mmproj. The mmproj
     # loader performs view/reshape/concatenation on some F16/F32 tensors; those
     # derived tensors can remain GGMLTensor subclasses while losing custom
     # tensor_type attributes. They are ordinary visual weights and must not be
     # treated as streamable text matrices anyway.
-    stage_start = time.perf_counter()
     state_dict = _wrap_gguf_tensors(state_dict)
-    _stage_done("文本 GGUF 流式权重包装", stage_start)
-
     # Keep the original plugin's mmproj discovery, Qwen3-VL merger mapping,
     # split-QKV reconstruction and visual state-dict behavior.
-    stage_start = time.perf_counter()
-    _LOG.info("[LOAD 2/4] 开始读取视觉塔 mmproj")
-    _memory_info("before mmproj")
     vision_state = loader.gguf_mmproj_loader(clip_path)
-    _stage_done("视觉塔 mmproj 读取", stage_start)
-    _memory_info("after mmproj")
     if not vision_state:
         raise RuntimeError(
             "Qwen3-VL / Qwen Image 2.1 必须有匹配的 mmproj GGUF。"
@@ -824,12 +709,6 @@ def _load_qwen_image21_state_dict(clip_path):
 
     # Text matrix weights remain backed by their original CPU/mmap storage.
     # Visual mmproj weights retain the plugin's original loading behavior.
-
-    _LOG.info(
-        "[LOAD 3/4] 权重准备完成 | arch=%s | token_embd=%s | "
-        "词表保持按 token 行读取",
-        arch, token_shape,
-    )
     return state_dict, extra
 
 
@@ -873,15 +752,8 @@ class MyCLIPGGUFLoader:
         return path
 
     def load_clip(self, model, clip_name, linear_chunk_rows=512):
-        _LOG.info("[LOAD] 开始预加载 DiT 到 GPU")
-        _memory_info("before DiT preload")
-
         comfy.model_management.load_models_gpu([model])
-
-        _memory_info("after DiT preload")
-        _LOG.info("[LOAD] DiT GPU 预加载完成")
         global _CLIP_CACHE
-        total_start = time.perf_counter()
         vendor = _load_vendor_modules()
         clip_path = self._resolve_clip_path(clip_name)
         cache_key = _clip_cache_key(clip_path, linear_chunk_rows)
@@ -893,23 +765,11 @@ class MyCLIPGGUFLoader:
         with _CLIP_CACHE_LOCK:
             if _CLIP_CACHE is not None and _CLIP_CACHE["key"] == cache_key:
                 clip = _CLIP_CACHE["clip"]
-                _LOG.info(
-                    "[CACHE] HIT | %s | Linear chunk_rows=%d | "
-                    "复用现有 CLIP/mmap，不重新读取文本 GGUF 或 mmproj",
-                    os.path.basename(clip_path), int(linear_chunk_rows),
-                )
-                _memory_info("CLIP cache hit")
+                _LOG.info("[CACHE] HIT")
                 return (clip,)
 
-            _LOG.info(
-                "[CACHE] MISS | %s | Linear chunk_rows=%d | 开始构建",
-                os.path.basename(clip_path), int(linear_chunk_rows),
-            )
+            _LOG.info("[CACHE] MISS")
             state_dict, extra = _load_qwen_image21_state_dict(clip_path)
-
-            stage_start = time.perf_counter()
-            _LOG.info("[LOAD 4/4] 开始构建 CLIP 文本编码器")
-            _memory_info("before CLIP build")
             operations = _make_operations_class(linear_chunk_rows)
             model_options = {
                 "custom_operations": operations,
@@ -930,30 +790,14 @@ class MyCLIPGGUFLoader:
             # MyGGMLTensor parameters refuse full-device migration, while other
             # model parameters follow the ordinary ComfyUI load/offload behavior.
             clip.patcher = vendor["nodes"].GGUFModelPatcher.clone(clip.patcher)
-            _stage_done("CLIP 构建及 patcher 克隆", stage_start)
-            _memory_info("after CLIP build")
-
             # Keep the mmap-backed model alive in _CLIP_CACHE. Only temporary
             # state-dict containers are dropped; the model owns the tensor views.
             del state_dict
             del extra
-            collected = gc.collect()
-            _LOG.info(
-                "[LOAD] 临时 state_dict/extra 引用已释放 | GC 回收对象数=%d",
-                collected,
-            )
-            _memory_info("after temporary state_dict release")
-            _install_encode_diagnostics(clip)
-
+            gc.collect()
             # Single-entry cache avoids retaining multiple large text encoders.
             _CLIP_CACHE = {"key": cache_key, "clip": clip}
-
-            _LOG.info(
-                "[LOAD] CLIP 加载完成并已缓存 | %s | Linear chunk_rows=%d | "
-                "总耗时 %.2f 秒",
-                os.path.basename(clip_path), int(linear_chunk_rows),
-                time.perf_counter() - total_start,
-            )
+            _LOG.info("[LOAD] CLIP 加载完成并已缓存")
             return (clip,)
 
 
