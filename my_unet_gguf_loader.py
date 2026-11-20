@@ -1,23 +1,10 @@
+
 # my_unet_gguf_loader.py
 #
 # Based on leejet/ComfyUI-GGUF (Apache-2.0).
 # Standalone Qwen-Image 2.1 compatible GGUF UNet loader.
-#
-# Features:
-# - Qwen-Image 2.1 architecture support
-# - Qwen fused Linear activation: input_act="swiglu"
-# - Linear residual / residual_scale support
-# - Optional GPU Q8_0 row-chunk dequantization
-# - Standard ComfyUI MODEL output and ModelPatcher integration
-# - GPU-resident Q8_0 weights with GGUF mmap release after GPU copy
-#
-# Install:
-#   ComfyUI/custom_nodes/my_unet_gguf_loader.py
-#
-# Restart ComfyUI after installation.
 
 import os
-import logging
 import warnings
 import collections
 import inspect
@@ -55,71 +42,18 @@ def _is_my_gguf_patcher(patcher):
     )
 
 
-def _log_gguf_runtime(stage, loaded_model=None, patcher=None):
-    """Log ComfyUI model registration and ROCm/PyTorch allocator state."""
-    try:
-        loaded_models = tuple(
-            getattr(comfy.model_management, "current_loaded_models", ())
-        )
-        registered = loaded_model in loaded_models if loaded_model is not None else None
-        keepalive = bool(
-            loaded_model is not None
-            and getattr(loaded_model, "_my_gguf_keepalive", None)
-            is getattr(loaded_model, "model", None)
-        )
-        model_name = type(patcher).__name__ if patcher is not None else "unknown"
-
-        memory = "allocator=unavailable"
-        try:
-            if torch.cuda.is_available():
-                stats = torch.cuda.memory_stats()
-                allocated = torch.cuda.memory_allocated() / (1024 ** 2)
-                reserved = torch.cuda.memory_reserved() / (1024 ** 2)
-                free_total = torch.cuda.mem_get_info()
-                free_mb = free_total[0] / (1024 ** 2)
-                total_mb = free_total[1] / (1024 ** 2)
-                active = stats.get("active_bytes.all.current", 0) / (1024 ** 2)
-                memory = (
-                    f"allocated={allocated:.0f}MB reserved={reserved:.0f}MB "
-                    f"active={active:.0f}MB free={free_mb:.0f}MB "
-                    f"total={total_mb:.0f}MB"
-                )
-        except Exception as exc:
-            memory = f"allocator_error={type(exc).__name__}"
-
-        logging.info(
-            "%s RUNTIME %s model=%s loaded_models=%d registered=%s "
-            "keepalive=%s %s",
-            _LOG_PREFIX,
-            stage,
-            model_name,
-            len(loaded_models),
-            registered,
-            keepalive,
-            memory,
-        )
-    except Exception:
-        logging.exception("%s RUNTIME_DIAGNOSTIC_FAILED stage=%s", _LOG_PREFIX, stage)
-
-
 def _install_persistent_vram_hooks():
     mm = comfy.model_management
     loaded_model_cls = getattr(mm, "LoadedModel", None)
 
     if loaded_model_cls is None:
-        logging.warning(
-            "%s LoadedModel class unavailable; persistent residency is disabled",
-            _LOG_PREFIX,
-        )
         return
 
-    # 1) Establish the strong reference only after a successful model load.
     original_model_load = loaded_model_cls.model_load
 
     if not getattr(original_model_load, "_my_gguf_keepalive_hook", False):
 
         def model_load_with_keepalive(self, *args, **kwargs):
-            _log_gguf_runtime("MODEL_LOAD_BEGIN", self, self.model)
             result = original_model_load(self, *args, **kwargs)
             patcher = self.model
 
@@ -130,34 +64,31 @@ def _install_persistent_vram_hooks():
                 if hasattr(self, "_my_gguf_keepalive"):
                     del self._my_gguf_keepalive
 
-            _log_gguf_runtime("MODEL_LOAD_COMPLETE", self, patcher)
             return result
 
         model_load_with_keepalive._my_gguf_keepalive_hook = True
         model_load_with_keepalive._my_gguf_original = original_model_load
         loaded_model_cls.model_load = model_load_with_keepalive
 
-    # 2) Release the strong reference after a complete ComfyUI unload.
     original_model_unload = loaded_model_cls.model_unload
 
     if not getattr(original_model_unload, "_my_gguf_keepalive_hook", False):
 
         def model_unload_with_keepalive(self, *args, **kwargs):
-            _log_gguf_runtime("MODEL_UNLOAD_BEGIN", self, self.model)
             result = original_model_unload(self, *args, **kwargs)
 
             if result is True and hasattr(self, "_my_gguf_keepalive"):
                 del self._my_gguf_keepalive
 
-            _log_gguf_runtime("MODEL_UNLOAD_COMPLETE", self, self.model)
             return result
 
         model_unload_with_keepalive._my_gguf_keepalive_hook = True
         model_unload_with_keepalive._my_gguf_original = original_model_unload
         loaded_model_cls.model_unload = model_unload_with_keepalive
 
-    # 3) Normal memory pressure must not evict a keepalive model.
-    #    Explicit user-requested unload operations temporarily bypass this.
+    # Normal memory pressure must not evict a keepalive model.
+    # Explicit user-requested unload operations temporarily bypass this.
+
     original_free_memory = mm.free_memory
 
     if not getattr(original_free_memory, "_my_gguf_keepalive_hook", False):
@@ -212,7 +143,8 @@ def _install_persistent_vram_hooks():
         free_memory_with_keepalive._my_gguf_original = original_free_memory
         mm.free_memory = free_memory_with_keepalive
 
-    # 4) Explicit unload APIs are allowed to unload keepalive models.
+    # Explicit unload APIs are allowed to unload keepalive models.
+
     for function_name in (
         "unload_all_models",
         "unload_model_and_clones",
@@ -359,12 +291,8 @@ class GGMLTensor(torch.Tensor):
     def copy_(self, *args, **kwargs):
         try:
             return super().copy_(*args, **kwargs)
-        except Exception as e:
-            logging.warning(
-                "%s ignoring copy_: %s",
-                _LOG_PREFIX,
-                e,
-            )
+        except Exception:
+            pass
 
     def new_empty(self, size, *args, **kwargs):
         new_tensor = super().new_empty(
@@ -408,6 +336,7 @@ def _q8_0_dequantize_raw(raw, output_shape, dtype):
       first 2 bytes = FP16 scale
       next 32 bytes = INT8 values
     """
+
     if not raw.is_contiguous():
         raw = raw.contiguous()
 
@@ -465,17 +394,6 @@ def dequantize_tensor(
             if dtype is not None
             else result
         )
-
-    # Compatibility fallback for other GGUF quantization types.
-    logging.warning(
-        "%s qtype %s uses GGUF CPU dequant fallback",
-        _LOG_PREFIX,
-        getattr(
-            qtype,
-            "name",
-            repr(qtype),
-        ),
-    )
 
     cpu_array = tensor.detach().cpu().numpy()
 
@@ -628,7 +546,6 @@ def get_gguf_metadata(reader):
 
     return metadata
 
-
 def gguf_sd_loader(
     path,
     handle_prefix="model.diffusion_model.",
@@ -666,21 +583,6 @@ def gguf_sd_loader(
         tensors.append(
             (sd_key, tensor)
         )
-
-    # Report quantization types for the tensors actually selected for this DiT.
-    qtype_counts = collections.Counter(
-        getattr(tensor.tensor_type, "name", str(tensor.tensor_type))
-        for _sd_key, tensor in tensors
-    )
-    qtype_summary = ", ".join(
-        f"{qtype} ({count})"
-        for qtype, count in sorted(qtype_counts.items())
-    )
-    logging.info(
-        "%s GGUF qtypes: %s",
-        _LOG_PREFIX,
-        qtype_summary or "none",
-    )
 
     arch_str = get_field(
         reader,
@@ -945,6 +847,7 @@ def get_q8_0_raw_rows(weight):
     or:
         None
     """
+
     try:
         if getattr(
             weight,
@@ -989,13 +892,6 @@ def get_q8_0_raw_rows(weight):
         )
 
         if raw_u8.numel() != expected_bytes:
-            logging.warning(
-                "%s Q8_0 layout mismatch: logical=%s raw_numel=%s expected=%s",
-                _LOG_PREFIX,
-                logical_shape,
-                raw_u8.numel(),
-                expected_bytes,
-            )
             return None
 
         raw_rows = raw_u8.reshape(
@@ -1009,12 +905,7 @@ def get_q8_0_raw_rows(weight):
             out_features,
         )
 
-    except Exception as e:
-        logging.warning(
-            "%s cannot validate Q8_0 raw layout: %s",
-            _LOG_PREFIX,
-            e,
-        )
+    except Exception:
         return None
 
 
@@ -1026,6 +917,7 @@ def dequantize_q8_0_row_chunk(
     """
     Dequantize a group of complete Q8_0 rows on the current device.
     """
+
     row_count = raw_rows.shape[0]
 
     blocks_per_row = in_features // 32
@@ -1261,6 +1153,7 @@ class GGMLLayer(torch.nn.Module):
             destination[prefix + "temp.weight"] = temp
 
         return
+
     def get_weight(
         self,
         tensor,
@@ -1415,6 +1308,8 @@ class GGMLLayer(torch.nn.Module):
         **kwargs,
     ):
         raise NotImplementedError
+
+
 # ------------------------------------------------------------
 # ComfyUI operations
 # ------------------------------------------------------------
@@ -1441,8 +1336,6 @@ class GGMLOps(comfy.ops.manual_cast):
             self.out_features = out_features
             self.weight = None
             self.bias = None
-
-            self._chunk_fallback_logged = False
 
         def _full_linear(
             self,
@@ -1515,15 +1408,6 @@ class GGMLOps(comfy.ops.manual_cast):
                 "patches",
                 [],
             ):
-                if not self._chunk_fallback_logged:
-                    logging.warning(
-                        "%s Linear has LoRA patches; "
-                        "using full dequantization for this layer",
-                        _LOG_PREFIX,
-                    )
-
-                    self._chunk_fallback_logged = True
-
                 return None
 
             input = apply_input_activation(
@@ -1549,15 +1433,6 @@ class GGMLOps(comfy.ops.manual_cast):
             )
 
             if validated is None:
-                if not self._chunk_fallback_logged:
-                    logging.warning(
-                        "%s Q8_0 raw layout not suitable for "
-                        "row chunking; using full dequantization",
-                        _LOG_PREFIX,
-                    )
-
-                    self._chunk_fallback_logged = True
-
                 return None
 
             raw_rows, in_features, out_features = validated
@@ -1566,15 +1441,6 @@ class GGMLOps(comfy.ops.manual_cast):
                 in_features != self.in_features
                 or out_features != self.out_features
             ):
-                if not self._chunk_fallback_logged:
-                    logging.warning(
-                        "%s Q8_0 logical shape mismatch; "
-                        "using full dequantization",
-                        _LOG_PREFIX,
-                    )
-
-                    self._chunk_fallback_logged = True
-
                 return None
 
             bias = None
@@ -1826,45 +1692,82 @@ class GGUFModelPatcher(
     def patch_weight_to_device(self, key, device_to=None, inplace_update=False):
         if key not in self.patches:
             return
+
         weight = comfy.utils.get_attr(self.model, key)
         patches = self.patches[key]
+
         if is_quantized(weight):
             out_weight = weight.to(device_to)
+
             patches = move_patch_to_device(
                 patches,
                 self.load_device if self.patch_on_device else self.offload_device,
             )
+
             out_weight.patches = [(patches, key)]
+
         else:
             inplace_update = self.weight_inplace_update or inplace_update
+
             if key not in self.backup:
                 self.backup[key] = collections.namedtuple(
                     "Dimension", ["weight", "inplace_update"]
                 )(
-                    weight.to(device=self.offload_device, copy=inplace_update),
+                    weight.to(
+                        device=self.offload_device,
+                        copy=inplace_update,
+                    ),
                     inplace_update,
                 )
+
             if device_to is not None:
                 temp_weight = comfy.model_management.cast_to_device(
-                    weight, device_to, torch.float32, copy=True
+                    weight,
+                    device_to,
+                    torch.float32,
+                    copy=True,
                 )
             else:
-                temp_weight = weight.to(torch.float32, copy=True)
-            out_weight = comfy.lora.calculate_weight(patches, temp_weight, key)
-            out_weight = comfy.float.stochastic_rounding(out_weight, weight.dtype)
+                temp_weight = weight.to(
+                    torch.float32,
+                    copy=True,
+                )
+
+            out_weight = comfy.lora.calculate_weight(
+                patches,
+                temp_weight,
+                key,
+            )
+
+            out_weight = comfy.float.stochastic_rounding(
+                out_weight,
+                weight.dtype,
+            )
+
         if inplace_update:
-            comfy.utils.copy_to_param(self.model, key, out_weight)
+            comfy.utils.copy_to_param(
+                self.model,
+                key,
+                out_weight,
+            )
         else:
-            comfy.utils.set_attr_param(self.model, key, out_weight)
+            comfy.utils.set_attr_param(
+                self.model,
+                key,
+                out_weight,
+            )
 
     def unpatch_model(self, device_to=None, unpatch_weights=True):
         if unpatch_weights:
             for parameter in self.model.parameters():
                 if is_torch_compatible(parameter):
                     continue
+
                 patches = getattr(parameter, "patches", [])
+
                 if patches:
                     parameter.patches = []
+
         return super().unpatch_model(
             device_to=device_to,
             unpatch_weights=unpatch_weights,
@@ -1876,30 +1779,42 @@ class GGUFModelPatcher(
             force_patch_weights=True,
             **kwargs,
         )
+
         target_device = torch.device(self.load_device)
+
         if target_device.type == "cpu":
             raise RuntimeError(
                 f"{_LOG_PREFIX} GPU-resident mode requires "
                 "ComfyUI load_device to be a GPU."
             )
+
         if target_device.type == "cuda" and target_device.index is None:
-            target_device = torch.device("cuda", torch.cuda.current_device())
+            target_device = torch.device(
+                "cuda",
+                torch.cuda.current_device(),
+            )
 
         self.model.to(device=target_device)
+
         if target_device.type == "cuda":
             torch.cuda.synchronize(target_device)
 
         misplaced = []
+
         for name, parameter in self.model.named_parameters():
             if parameter.device != target_device:
                 misplaced.append((name, str(parameter.device)))
+
         for name, buffer in self.model.named_buffers():
             if buffer.device != target_device:
                 misplaced.append((name, str(buffer.device)))
+
         if misplaced:
             preview = ", ".join(
-                f"{name}={device}" for name, device in misplaced[:8]
+                f"{name}={device}"
+                for name, device in misplaced[:8]
             )
+
             raise RuntimeError(
                 f"{_LOG_PREFIX} GPU residency verification failed: "
                 f"{len(misplaced)} tensors are not on "
@@ -1908,31 +1823,37 @@ class GGUFModelPatcher(
 
         self.mmap_released = True
         _release_cached_gguf_reader(self.model)
-        logging.info(
-            "%s GPU_RESIDENT device=%s parameters=%d buffers=%d",
-            _LOG_PREFIX,
-            target_device,
-            sum(1 for _ in self.model.parameters()),
-            sum(1 for _ in self.model.buffers()),
-        )
 
     def clone(self, *args, **kwargs):
         source_class = self.__class__
         self.__class__ = GGUFModelPatcher
+
         try:
             new = super().clone(*args, **kwargs)
         finally:
             self.__class__ = source_class
+
         new.__class__ = GGUFModelPatcher
-        new.patch_on_device = getattr(self, "patch_on_device", False)
-        new.mmap_released = getattr(self, "mmap_released", False)
-        new._my_gguf_keep_loaded = getattr(
-            self, "_my_gguf_keep_loaded", False
+        new.patch_on_device = getattr(
+            self,
+            "patch_on_device",
+            False,
         )
+        new.mmap_released = getattr(
+            self,
+            "mmap_released",
+            False,
+        )
+        new._my_gguf_keep_loaded = getattr(
+            self,
+            "_my_gguf_keep_loaded",
+            False,
+        )
+
         if source_class != GGUFModelPatcher:
             new.size = 0
-        return new
 
+        return new
 
 # ------------------------------------------------------------
 # Process-level model cache
@@ -1960,10 +1881,6 @@ def _release_cached_gguf_reader(model):
             cached_patcher is None
             or getattr(cached_patcher, "model", None) is not model
         ):
-            logging.warning(
-                "%s mmap release skipped: cached model identity differs",
-                _LOG_PREFIX,
-            )
             return False
 
         reader = _MODEL_CACHE.pop(
@@ -1974,11 +1891,6 @@ def _release_cached_gguf_reader(model):
     if reader is not None:
         del reader
         gc.collect()
-
-    logging.info(
-        "%s GGUF_READER_RELEASED",
-        _LOG_PREFIX,
-    )
 
     return True
 
@@ -2061,8 +1973,6 @@ def _configure_linear_instances(
             module,
             GGMLOps.Linear,
         ):
-            # Instance-level values prevent one cached model's
-            # settings from being overwritten by another model.
             module.dequant_dtype = dequant_dtype
             module.patch_dtype = patch_dtype
             module.gpu_dequant_chunk_rows = int(chunk_rows)
@@ -2081,17 +1991,10 @@ def _build_cached_model(
 
     # These values are used during model construction.
     # They are also copied onto each Linear instance afterwards.
+
     ops.Linear.dequant_dtype = dequant_dtype
     ops.Linear.patch_dtype = patch_dtype
     ops.Linear.gpu_dequant_chunk_rows = int(chunk_rows)
-
-    logging.info(
-        "%s MODEL_BUILD_BEGIN file=%s chunk_rows=%d patch_on_device=%s",
-        _LOG_PREFIX,
-        os.path.basename(unet_path),
-        int(chunk_rows),
-        bool(patch_on_device),
-    )
 
     state_dict, extra, reader = gguf_sd_loader(
         unet_path,
@@ -2141,12 +2044,6 @@ def _build_cached_model(
         "reader": reader,
     }
 
-    logging.info(
-        "%s MODEL_BUILD_COMPLETE arch=%s",
-        _LOG_PREFIX,
-        extra.get("arch_str"),
-    )
-
     return model
 
 
@@ -2169,27 +2066,15 @@ def _get_cached_model(
 
     # Keep lookup and model construction under one lock.
     # This prevents two concurrent prompts from loading the same GGUF.
+
     with _MODEL_CACHE_LOCK:
         if (
             _MODEL_CACHE is not None
             and _MODEL_CACHE.get("key") == cache_key
         ):
-            logging.info(
-                "%s cache HIT: %s",
-                _LOG_PREFIX,
-                os.path.basename(unet_path),
-            )
-
             base_model = _MODEL_CACHE["model"]
-            _log_gguf_runtime("CACHE_HIT", patcher=base_model)
 
         else:
-            logging.info(
-                "%s cache MISS: %s",
-                _LOG_PREFIX,
-                os.path.basename(unet_path),
-            )
-
             base_model = _build_cached_model(
                 unet_path,
                 chunk_rows,
@@ -2199,11 +2084,11 @@ def _get_cached_model(
             )
 
             _MODEL_CACHE["key"] = cache_key
-            _log_gguf_runtime("CACHE_MISS_BUILD_COMPLETE", patcher=base_model)
 
         # Return an independent ModelPatcher clone.
         # ComfyUI can manage patches and load state on this clone
         # without replacing the cached base patcher.
+
         model = base_model.clone()
 
         model.patch_on_device = bool(patch_on_device)
